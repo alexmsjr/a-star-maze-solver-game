@@ -1,105 +1,156 @@
 import pygame
 import sys
 
+# FIXING AUDIO DELAY BEFORE INIT (Small buffer)
+pygame.mixer.pre_init(44100, -16, 2, 512)
 pygame.init()
 
 ### DISPLAY SETUP:
-display_h = 900 # screen High
-display_l = 700 # screen Length
+display_h = 900  # screen High
+display_l = 700  # screen Length
 display = pygame.display.set_mode((display_l, display_h))
 pygame.display.set_caption("oLabirinto")
 
 ### FONTS:
-title_font = pygame.font.Font('fonts\DOS.ttf', 73)
+# Make sure font paths are correct in your PC!
+title_font = pygame.font.Font(r'fonts\DOS.ttf', 73)
 button_font = pygame.font.SysFont("terminal", 36)
+default_font = pygame.font.SysFont("terminal", 25)
 
 ### COLORS:
+back_gray = (50, 52, 55)
+dark_gray = (40,42,45)
+gray = (90, 90, 90)
+text_gray = (100,102,105)
+
+yellow = (226,183,20)
 white = (255,255,255)
 black = (0,0,0)
-gray = (200,200,200)
 green = (46,135,10)
+maze_gray = (200,200,200)
 
-############################################## SCREENS #################################################
-
-# Every menu screen have an id, a number to use on main loop.
-# For example, menu screen is 0.
+transparent = (0,0,0,0)
 
 ############################################## MENU(0) #################################################
-menu_background = pygame.image.load('img\main.webp')
-menu_background = pygame.transform.scale(menu_background, (display_l, display_h))
-menu_background.set_alpha(5)
-title_text = title_font.render("oLabirinto", True, white)
+# TITLE
+main_title_text = title_font.render("oLabirinto", True, white)
 
-# BOTTOM DIV
-div_length = display_l * 0.6
-div_height = (70 * 3)# (buttons size+10 of margin) * number of buttons + 10 for margins
-div_pos_x = (display_l // 2) - (div_length // 2)
-div_pos_y = (display_h // 2) - (div_height // 2)
+# MENU BUTTONS CONFIG (Global Screen Coordinates)
+button_w = (display_l * 0.6) - 10
+button_h = 60
+button_x = (display_l // 2) - (button_w // 2)
+
+total_buttons_h = (70 * 3)
+start_y = (display_h // 2) - (total_buttons_h // 2)
 
 # BUTTONS (posX, posY, length, height)
-start_button = pygame.Rect(5, 5, (div_length-10), 60)
-option_button = pygame.Rect(5,75, (div_length-10), 60)
-quit_button = pygame.Rect(5,145, (div_length-10), 60)
+start_button = pygame.Rect(button_x, start_y + 5, button_w, button_h)
+option_button = pygame.Rect(button_x, start_y + 75, button_w, button_h)
+quit_button = pygame.Rect(button_x, start_y + 145, button_w, button_h)
+
 
 def menu_screen():
     # id 0
-    display.blit(menu_background, (0, 0)) # place background
-
-    # BUTTONS DIV
-    buttons_div = pygame.Surface((div_length,div_height), pygame.SRCALPHA)
-    buttons_div.fill((0,255,0,0))
+    display.fill(black)
 
     # TITLE
-    display.blit(title_text, (150,150))
+    display.blit(main_title_text, (150, 150))
+
+    # GET GLOBAL MOUSE POS
+    mouse_global_pos = pygame.mouse.get_pos()
 
     # START BUTTON
-    pygame.draw.rect(buttons_div, white, start_button, border_radius=8)
-    text_start_button = button_font.render("Jogar", True, black)
-    rect_start_button = text_start_button.get_rect(center=start_button.center)
-    buttons_div.blit(text_start_button, rect_start_button)
+    if start_button.collidepoint(mouse_global_pos):
+        pygame.draw.rect(display, gray, start_button, border_radius=8)
+        start_text = button_font.render("Start", True, white)
+    else:
+        pygame.draw.rect(display, white, start_button, border_radius=8)
+        start_text = button_font.render("Start", True, black)
+    display.blit(start_text, start_text.get_rect(center=start_button.center))
 
     # OPTION BUTTON
-    pygame.draw.rect(buttons_div, white, option_button, border_radius=8)
-    text_option_button = button_font.render("Opções", True, black)
-    rect_option_button = text_option_button.get_rect(center=option_button.center)
-    buttons_div.blit(text_option_button, rect_option_button)
+    if option_button.collidepoint(mouse_global_pos):
+        pygame.draw.rect(display, gray, option_button, border_radius=8)
+        option_text = button_font.render("Options", True, white)
+    else:
+        pygame.draw.rect(display, white, option_button, border_radius=8)
+        option_text = button_font.render("Options", True, black)
+    display.blit(option_text, option_text.get_rect(center=option_button.center))
 
     # QUIT BUTTON
-    pygame.draw.rect(buttons_div, white, quit_button, border_radius=8)
-    text_quit_button = button_font.render("Sair", True, black)
-    rect_quit_button = text_quit_button.get_rect(center=quit_button.center)
-    buttons_div.blit(text_quit_button, rect_quit_button)
-
-    display.blit(buttons_div, (div_pos_x, div_pos_y))
-
+    if quit_button.collidepoint(mouse_global_pos):
+        pygame.draw.rect(display, gray, quit_button, border_radius=8)
+        quit_text = button_font.render("Quit", True, white)
+    else:
+        pygame.draw.rect(display, white, quit_button, border_radius=8)
+        quit_text = button_font.render("Quit", True, black)
+    display.blit(quit_text, quit_text.get_rect(center=quit_button.center))
 
 
 ############################################## LEVEL(1) #################################################
 
 # MAZE CONFIG
-lines = 10
+lines = 20
 columns = lines
-cell_size = (600/lines)  # pixels
+cell_size = (600 / lines)  # pixels
 
-# MAIN DIV ###
-# maze size
-level_div_main_l = (cell_size * lines)
-# maze size + buttons space
-level_div_main_h = (cell_size * columns) + 200
-level_div_main_pos_x = (display_l // 2) - (level_div_main_l // 2)
-level_div_main_pos_y = (display_h // 2) - (level_div_main_h // 2)
+#### MAIN DIV ####
+level_div_main_l = (cell_size * lines)  # maze size
+level_div_main_h = (cell_size * columns) + 200  # maze size + buttons space
+
+level_div_main_pos_x = (display_l // 2) - (level_div_main_l // 2)  # maze centralize
+level_div_main_pos_y = (display_h // 2) - (level_div_main_h // 2)  # maze centralize
+
+# TOP BAR BUTTONS (Local Coordinates inside the Div)
+back_button = pygame.Rect(0, 0, 140, 40)
+title_bar = pygame.Rect(150, 0, 300, 40)
+help_button = pygame.Rect(460, 0, 140, 40)
+
 
 def level_one():
     # id 1
-    display.fill(0)
+    display.fill(back_gray)
 
-    # BOTTOM DIV
+    # MAIN DIV LAYER
     level_div_main = pygame.Surface((level_div_main_l, level_div_main_h), pygame.SRCALPHA)
-    level_div_main.fill((255,0,0,50))
+    level_div_main.fill((0, 0, 0, 0))
+
+    # MOUSE TRANSLATION FOR DIV HOVER
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    mouse_local_x = mouse_x - level_div_main_pos_x
+    mouse_local_y = mouse_y - level_div_main_pos_y
+
+    # --- TOP BAR ---
+    # Back Button
+    if back_button.collidepoint(mouse_local_x, mouse_local_y):
+        pygame.draw.rect(level_div_main, dark_gray, back_button, border_radius=12)
+        back_text = default_font.render("back", True, white)
+        level_div_main.blit(back_text, back_text.get_rect(center=back_button.center))
+    else:
+        pygame.draw.rect(level_div_main, dark_gray, back_button, border_radius=12)
+        back_text = default_font.render("back", True, text_gray)
+        level_div_main.blit(back_text, back_text.get_rect(center=back_button.center))
+
+    # Title Bar
+    pygame.draw.rect(level_div_main, dark_gray, title_bar, border_radius=12)
+    level_title_text = default_font.render("level 1", True, yellow)
+    level_div_main.blit(level_title_text, level_title_text.get_rect(center=title_bar.center))
+
+    # Help Button (With interactive hover)
+    if help_button.collidepoint(mouse_local_x, mouse_local_y):
+        pygame.draw.rect(level_div_main, dark_gray, help_button, border_radius=12)
+        help_text = default_font.render("help", True, white)
+    else:
+        pygame.draw.rect(level_div_main, dark_gray, help_button, border_radius=12)
+        help_text = default_font.render("help", True, text_gray)
+
+    level_div_main.blit(help_text, help_text.get_rect(center=help_button.center))
+
+    # BLIT MAIN DIV TO DISPLAY (Must be before the maze, otherwise it covers the maze)
     display.blit(level_div_main, (level_div_main_pos_x, level_div_main_pos_y))
 
-    # Maze pattern
-    matriz_labirinto = [
+    # --- MAZE ---
+    maze_pattern = [
         [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],
         [0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],
         [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],
@@ -122,51 +173,81 @@ def level_one():
         [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],
     ]
 
-    # Drawing the maze
     for line in range(lines):
         for column in range(columns):
-            # Descobre se é caminho (0) ou parede (1)
-            cell = matriz_labirinto[line][column]
+            cell = maze_pattern[line][column]
 
-            # Calcula o X e Y na tela, somando o offset para ficar centralizado
             cell_pos_x = (column * cell_size) + level_div_main_pos_x
-            cell_pos_y = (line * cell_size) + level_div_main_pos_y
+            # Adding 80 to distance the maze from the top bar
+            cell_pos_y = (line * cell_size) + level_div_main_pos_y + 60
 
-            # Cria a forma matemática do quadradinho
-            rect_celula = pygame.Rect(cell_pos_x, cell_pos_y, cell_size, cell_size)
+            cell_rect = pygame.Rect(cell_pos_x, cell_pos_y, cell_size, cell_size)
 
-            # Pinta de acordo com o valor lógico
             if cell == 1:
-                pygame.draw.rect(display, gray, rect_celula)  # gray wall
+                pygame.draw.rect(display, gray, cell_rect)
             else:
-               pygame.draw.rect(display, white, rect_celula)  # white path
+                pygame.draw.rect(display, white, cell_rect)
 
 
-#============================================ MAIN LOOP ==================================================
+
+# ============================================ MAIN LOOP ==================================================
+
+# Load sound safely
+try:
+    confirm_sound = pygame.mixer.Sound(r'.\sounds\confirm_sfx.ogg')
+except FileNotFoundError:
+    confirm_sound = None
+
 screen = 0
 running = True
 while running:
+
     for event in pygame.event.get():
-        # CLOSE BUTTON(X)
+
+        ### CLOSE BUTTON(X)
         if event.type == pygame.QUIT:
             running = False
 
-        ### MENU BUTTONS
-        if screen == 0:
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                pos_x, pos_y = event.pos
-                mouse_local_pos = (pos_x-div_pos_x,pos_y-div_pos_y)
+        ### MOUSE CLICKS
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 
-                if event.button == 1:
-                    if start_button.collidepoint(mouse_local_pos):
-                        screen = 1
+            # MENU CLICKS (screen 0)
+            if screen == 0:
+                if start_button.collidepoint(event.pos):
+                    if confirm_sound: confirm_sound.play()
+                    screen = 1  # Go to game
 
-    # MENU(0) SCREEN
+                elif option_button.collidepoint(event.pos):
+                    if confirm_sound: confirm_sound.play()
+                    # Future logic for options screen
+
+                elif quit_button.collidepoint(event.pos):
+                    running = False  # Quit game
+
+            # LEVEL 1 CLICKS (screen 1)
+            elif screen == 1:
+                # Translate mouse position to Div coordinates
+                mouse_x, mouse_y = event.pos
+                mouse_local_x = mouse_x - level_div_main_pos_x
+                mouse_local_y = mouse_y - level_div_main_pos_y
+
+                # Back button check
+                if back_button.collidepoint(mouse_local_x, mouse_local_y):
+                    if confirm_sound: confirm_sound.play()
+                    screen = 0  # Back to menu!
+
+                # Help button check
+                if help_button.collidepoint(mouse_local_x, mouse_local_y):
+                    #if confirm_sound: confirm_sound.play()
+                    print('help button clicked')
+
+    # RENDER CORRECT SCREEN BASED ON 'screen' VARIABLE
     if screen == 0:
         menu_screen()
-
-    # LEVEL ONE
-    if screen == 1:
+    elif screen == 1:
         level_one()
 
     pygame.display.flip()
+
+pygame.quit()
+sys.exit()
