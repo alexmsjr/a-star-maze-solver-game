@@ -62,6 +62,7 @@ class NPsearch(object):
         path_2 = list(reversed(path_2[::-1]))  # Path_2 inversion
         return path_1 + path_2
 
+    # amplitude
     def breadth_first_search(self, start, end, nx, ny, maze, update_ui):
         # Check if start and goal are the same
         if start == end:
@@ -102,6 +103,54 @@ class NPsearch(object):
                 if flag:
                     neigh = NPnode(current, new, current.depth + 1, None, None)
                     queue.append(neigh)
+                    visited[new_t] = current.depth + 1
+
+                    # Check if new_t is the goal
+                    if new_t == end_t:
+                        return self.show_path(neigh)
+        return None
+
+    # profundidade
+    def depth_first_search(self, start, end, nx, ny, maze, update_ui):
+        # Check if start and goal are the same
+        if start == end:
+            return [start]
+
+        # Create tuples
+        start_t = tuple(start)
+        end_t = tuple(end)
+
+        # Search tree queue
+        stack = deque()
+
+        # Initialize search tree with start_t as root node
+        root = NPnode(None, start_t, 0, None, None)
+        stack.append(root)
+
+        # mark start node as visited
+        visited = {}  # mapping
+        visited[start_t] = 0
+
+        # Run the search
+        while stack:
+            # Pop the next node from the queue
+            current = stack.pop()
+
+            # Search for neighbors
+            neigh = self.neighbors(current.state, nx, ny, maze)
+
+            if update_ui:
+                update_ui()
+
+            for new in neigh:
+                new_t = tuple(new)
+                flag = True
+                if new_t in visited:
+                    if visited[new_t] <= current.depth + 1:
+                        flag = False
+                if flag:
+                    neigh = NPnode(current, new, current.depth + 1, None, None)
+                    stack.append(neigh)
                     visited[new_t] = current.depth + 1
 
                     # Check if new_t is the goal

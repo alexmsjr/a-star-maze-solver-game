@@ -99,9 +99,6 @@ start_button = pygame.Rect(button_x, start_y + 5, button_w, button_h)
 option_button = pygame.Rect(button_x, start_y + 75, button_w, button_h)
 quit_button = pygame.Rect(button_x, start_y + 145, button_w, button_h)
 
-# MAZE DEFAULT PATTERN
-maze_pattern = AuxFunctions.default_maze()
-
 def menu_screen():
     # id 0
     display.fill(black)
@@ -147,6 +144,9 @@ lines = 20
 columns = lines
 cell_size = (600 / lines)  # pixels
 
+# FIRST MAZE PATTERN
+maze_pattern, maze_start, maze_end = AuxFunctions.gen_randon_maze(lines,lines,100)
+
 #### MAIN DIV ####
 level_div_main_l = (cell_size * lines)  # maze size
 level_div_main_h = (cell_size * columns) + 200  # maze size + buttons space
@@ -159,6 +159,7 @@ back_button = pygame.Rect(0, 0, 140, 40)
 title_bar = pygame.Rect(150, 0, 300, 40)
 gen_random_maze = pygame.Rect(460, 0, 140, 40)
 breadth_first = pygame.Rect(0, 680, 140, 40)
+depth_first = pygame.Rect(150, 680, 140, 40)
 
 
 def level_one():
@@ -199,7 +200,7 @@ def level_one():
         gen_random_maze_font = default_font.render("random maze", True, text_gray)
     level_div_main.blit(gen_random_maze_font, gen_random_maze_font.get_rect(center=gen_random_maze.center))
 
-    # profundidade button
+    # amplitude button
     if(breadth_first.collidepoint(mouse_local_x, mouse_local_y)):
         pygame.draw.rect(level_div_main, dark_gray, breadth_first, border_radius=12)
         breadth_first_text = default_font.render("breadth first", True, white)
@@ -207,6 +208,15 @@ def level_one():
         pygame.draw.rect(level_div_main, dark_gray, breadth_first, border_radius=12)
         breadth_first_text = default_font.render("breadth first", True, text_gray)
     level_div_main.blit(breadth_first_text, breadth_first_text.get_rect(center=breadth_first.center))
+
+    # profundidade button
+    if(depth_first.collidepoint(mouse_local_x, mouse_local_y)):
+        pygame.draw.rect(level_div_main, dark_gray, depth_first, border_radius=12)
+        depth_first_text = default_font.render("depth first", True, white)
+    else:
+        pygame.draw.rect(level_div_main, dark_gray, depth_first, border_radius=12)
+        depth_first_text = default_font.render("depth first", True, text_gray)
+    level_div_main.blit(depth_first_text, depth_first_text.get_rect(center=depth_first.center))
 
     # BLIT MAIN DIV TO DISPLAY (Must be before the maze, otherwise it covers the maze)
     display.blit(level_div_main, (level_div_main_pos_x, level_div_main_pos_y))
@@ -284,10 +294,31 @@ while running:
 
                 # Generate a new random maze button check
                 if gen_random_maze.collidepoint(mouse_local_x, mouse_local_y):
-                    maze_pattern = AuxFunctions.gen_randon_maze(20,20, (0,0),(19,19),100)
+                    maze_pattern, maze_start, maze_end = AuxFunctions.gen_randon_maze(lines,lines,100)
 
                 # breadth_first_search check
                 if breadth_first.collidepoint(mouse_local_x, mouse_local_y):
+                    # 1. Cria a função que desenha, atualiza e pausa
+                    def animar_busca():
+                        level_one()  # Redesenha o mapa com os novos '4's
+                        pygame.display.flip()  # Atualiza a tela do monitor
+                        pygame.time.delay(10//(lines*columns))  # Pausa por 20 milissegundos (ajuste a velocidade aqui!)
+                        pygame.event.pump()  # Impede o Windows de achar que o jogo travou
+
+
+                    # 2. Passa essa função como último parâmetro!
+                    path = np_searcher.breadth_first_search(maze_start, maze_end,lines, lines, maze_pattern, animar_busca)
+                    path.pop(0)
+                    if path != None:
+                        for step in range(len(path)-1):
+                            cell = path[step]
+                            maze_pattern[cell[0]][cell[1]] = 5
+
+                    else:
+                        show_popup('Nenhum caminho foi encontrado!')
+
+                # breadth_first_search check
+                if depth_first.collidepoint(mouse_local_x, mouse_local_y):
                     # 1. Cria a função que desenha, atualiza e pausa
                     def animar_busca():
                         level_one()  # Redesenha o mapa com os novos '4's
@@ -297,7 +328,7 @@ while running:
 
 
                     # 2. Passa essa função como último parâmetro!
-                    path = np_searcher.breadth_first_search((0, 0), (19, 19), 20, 20, maze_pattern, animar_busca)
+                    path = np_searcher.depth_first_search(maze_start, maze_end, lines, lines, maze_pattern, animar_busca)
                     path.pop(0)
                     if path != None:
                         for step in range(len(path)-1):
@@ -307,9 +338,6 @@ while running:
 
                     else:
                         show_popup('Nenhum caminho foi encontrado!')
-
-
-
 
     # RENDER CORRECT SCREEN BASED ON 'screen' VARIABLE
     if screen == 0:
