@@ -137,12 +137,12 @@ class NPsearch(object):
             current = stack.pop()
 
             # Search for neighbors
-            neigh = self.neighbors(current.state, nx, ny, maze)
+            neighs = self.neighbors(current.state, nx, ny, maze)
 
             if update_ui:
                 update_ui()
 
-            for new in neigh:
+            for new in neighs:
                 new_t = tuple(new)
                 flag = True
                 if new_t in visited:
@@ -157,3 +157,99 @@ class NPsearch(object):
                     if new_t == end_t:
                         return self.show_path(neigh)
         return None
+
+    # Profundidade Limitada
+    def depth_limited_search(self, start, end, nx, ny, maze, lim, update_ui):
+        # Check if start and goal are the same
+        if start == end:
+            return [start]
+
+        # Create tuples
+        t_start = tuple(start)
+        t_end = tuple(end)
+
+        # Search tree queue
+        stack = deque()
+
+        # Initialize search tree with start_t as root node
+        root = NPnode(None, t_start, 0, None, None)
+        stack.append(root)
+
+        # mark start node as visited
+        visited = {}
+        visited[t_start] = 0
+
+        while stack:
+            # Pop the next node from the queue
+            current = stack.pop()
+
+            if current.depth < lim:
+                # Search for neighbors
+                neighs = self.neighbors(current.state, nx, ny, maze)
+
+                if update_ui:
+                    update_ui()
+
+                for new in neighs:
+                    new_t = tuple(new)
+                    flag = True
+                    if new_t in visited:
+                        if visited[new_t] <= current.state + 1:
+                            flag = False
+                    if flag:
+                        neigh = NPnode(current, new, current.depth + 1, None, None)
+                        stack.append(neigh)
+                        visited[new_t] = current.depth + 1
+
+                        # Check if new_t is the goal - multiobjetve
+                        if new_t == t_end:
+                            return self.show_path(neigh)
+        return None
+
+
+def aprof_iterativo_grid(self, inicio, fim, nx, ny, mapa, lim_max):
+    # Finaliza se início for igual a objetivo
+    if inicio == fim:
+        return [inicio]
+
+    for lim in range(1, lim_max):
+        # GRID: transforma em tupla
+        t_inicio = tuple(inicio)
+        t_fim = tuple(fim)
+
+        # Lista para árvore de busca - FILA
+        pilha = deque()
+
+        # Inclui início como nó raíz da árvore de busca
+        raiz = Node(None, t_inicio, 0, None, None)
+        pilha.append(raiz)
+
+        # Marca início como visitado
+        visitado = {}
+        visitado[t_inicio] = 0
+
+        while pilha:
+            # Remove o primeiro da FILA
+            atual = pilha.pop()
+
+            if atual.v1 < lim:
+                # Gera sucessores a partir do grid
+                filhos = self.sucessores_grid(atual.estado, nx, ny, mapa)
+
+                for novo in filhos:
+                    t_novo = tuple(novo)
+                    flag = True
+                    if t_novo in visitado:
+                        if visitado[t_novo] <= atual.v1 + 1:
+                            flag = False
+                    if flag:
+                        filho = Node(atual, novo, atual.v1 + 1, None, None)
+                        pilha.append(filho)
+                        visitado[t_novo] = atual.v1 + 1
+
+                        # Verifica se encontrou o objetivo
+                        if t_novo == t_fim:
+                            return self.exibirCaminho(filho)
+        visitado.clear()
+        pilha.clear()
+    return None
