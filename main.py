@@ -140,12 +140,15 @@ def menu_screen():
 ############################################## LEVEL(1) #################################################
 
 # MAZE CONFIG
-lines = 20
+lines = 31
 columns = lines
 cell_size = (600 / lines)  # pixels
 
 # FIRST MAZE PATTERN
-maze_pattern, maze_start, maze_end = AuxFunctions.gen_randon_maze(lines,lines,100)
+# maze_pattern, maze_start, maze_end = AuxFunctions.gen_randon_maze(lines,lines,100)
+maze_start = (0,0)
+maze_end = (30,30)
+maze_pattern = AuxFunctions.profundidade_grid_topeira(maze_start, maze_end, lines, lines)
 
 #### MAIN DIV ####
 level_div_main_l = (cell_size * lines)  # maze size
@@ -241,7 +244,7 @@ def level_one():
                 pygame.draw.rect(display, red, cell_rect)
             elif cell == 4: # explored path
                 pygame.draw.rect(display, (200,200,200), cell_rect)
-            elif cell == 5: # explored path
+            elif cell == 5: # path
                 pygame.draw.rect(display, (150,200,150), cell_rect)
 
 
@@ -294,7 +297,7 @@ while running:
 
                 # Generate a new random maze button check
                 if gen_random_maze.collidepoint(mouse_local_x, mouse_local_y):
-                    maze_pattern, maze_start, maze_end = AuxFunctions.gen_randon_maze(lines,lines,100)
+                    maze_pattern = AuxFunctions.profundidade_grid_topeira((0,0),(20,20),lines,lines)
 
                 # breadth_first_search check
                 if breadth_first.collidepoint(mouse_local_x, mouse_local_y):
