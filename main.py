@@ -1,8 +1,10 @@
 import pygame
 import sys
+import AuxFunctions
+from NPsearch import NPsearch
 
-# FIXING AUDIO DELAY BEFORE INIT (Small buffer)
-pygame.mixer.pre_init(44100, -16, 2, 512)
+np_searcher = NPsearch()
+
 pygame.init()
 
 ### DISPLAY SETUP:
@@ -29,8 +31,56 @@ black = (0,0,0)
 green = (46,135,10)
 maze_gray = (200,200,200)
 red = (255,0,0)
+blue = (0,0,255)
 
 transparent = (0,0,0,0)
+
+############################################## MESSAGE POP-UP #################################################
+def show_popup(message):
+    # 1. Cria a camada de escurecimento (Dim Overlay)
+    # Surface do tamanho da tela com suporte a canal Alpha (Transparência)
+    overlay = pygame.Surface((display_l, display_h), pygame.SRCALPHA)
+    # Preenche com preto (0,0,0) e alpha de 180 (vai de 0 a 255)
+    overlay.fill((0, 0, 0, 180))
+    display.blit(overlay, (0, 0))  # Desenha por cima de todo o labirinto
+
+    # 2. Configurações de tamanho e posição da caixa
+    popup_w = 400
+    popup_h = 200
+    popup_x = (display_l // 2) - (popup_w // 2)
+    popup_y = (display_h // 2) - (popup_h // 2)
+    popup_rect = pygame.Rect(popup_x, popup_y, popup_w, popup_h)
+
+    # 3. Desenha a caixa do popup
+    pygame.draw.rect(display, dark_gray, popup_rect, border_radius=15)
+
+    # 4. Desenha a mensagem principal (Mudado para button_font - tamanho menor)
+    text_surf = default_font.render(message, True, yellow)
+    text_rect = text_surf.get_rect(center=(popup_rect.centerx, popup_rect.centery - 20))
+    display.blit(text_surf, text_rect)
+
+    # 5. Desenha o aviso de como fechar
+    sub_text = default_font.render("Click anywhere to close", True, text_gray)
+    sub_rect = sub_text.get_rect(center=(popup_rect.centerx, popup_rect.bottom - 30))
+    display.blit(sub_text, sub_rect)
+
+    # 6. Atualiza a tela UMA VEZ com o popup montado
+    pygame.display.flip()
+
+    # 7. Loop de pausa esperando o usuário clicar
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            # Fecha o popup com clique ou tecla
+            if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                waiting = False
+
+    # Quando o loop acabar, o jogo volta a rodar normalmente no while principal.
+    # O labirinto será redesenhado por cima no próximo frame, apagando o popup.
 
 ############################################## MENU(0) #################################################
 # TITLE
@@ -49,6 +99,8 @@ start_button = pygame.Rect(button_x, start_y + 5, button_w, button_h)
 option_button = pygame.Rect(button_x, start_y + 75, button_w, button_h)
 quit_button = pygame.Rect(button_x, start_y + 145, button_w, button_h)
 
+# MAZE DEFAULT PATTERN
+maze_pattern = AuxFunctions.default_maze()
 
 def menu_screen():
     # id 0
@@ -105,7 +157,8 @@ level_div_main_pos_y = (display_h // 2) - (level_div_main_h // 2)  # maze centra
 # TOP BAR BUTTONS (Local Coordinates inside the Div)
 back_button = pygame.Rect(0, 0, 140, 40)
 title_bar = pygame.Rect(150, 0, 300, 40)
-help_button = pygame.Rect(460, 0, 140, 40)
+gen_random_maze = pygame.Rect(460, 0, 140, 40)
+breadth_first = pygame.Rect(0, 680, 140, 40)
 
 
 def level_one():
@@ -137,157 +190,50 @@ def level_one():
     level_title_text = default_font.render("level 1", True, yellow)
     level_div_main.blit(level_title_text, level_title_text.get_rect(center=title_bar.center))
 
-    # Help Button (With interactive hover)
-    if help_button.collidepoint(mouse_local_x, mouse_local_y):
-        pygame.draw.rect(level_div_main, dark_gray, help_button, border_radius=12)
-        help_text = default_font.render("help", True, white)
+    # gen_random_maze button
+    if(gen_random_maze.collidepoint(mouse_local_x, mouse_local_y)):
+        pygame.draw.rect(level_div_main, dark_gray, gen_random_maze, border_radius=12)
+        gen_random_maze_font = default_font.render("random maze", True, white)
     else:
-        pygame.draw.rect(level_div_main, dark_gray, help_button, border_radius=12)
-        help_text = default_font.render("help", True, text_gray)
+        pygame.draw.rect(level_div_main, dark_gray, gen_random_maze, border_radius=12)
+        gen_random_maze_font = default_font.render("random maze", True, text_gray)
+    level_div_main.blit(gen_random_maze_font, gen_random_maze_font.get_rect(center=gen_random_maze.center))
 
-    level_div_main.blit(help_text, help_text.get_rect(center=help_button.center))
+    # profundidade button
+    if(breadth_first.collidepoint(mouse_local_x, mouse_local_y)):
+        pygame.draw.rect(level_div_main, dark_gray, breadth_first, border_radius=12)
+        breadth_first_text = default_font.render("breadth first", True, white)
+    else:
+        pygame.draw.rect(level_div_main, dark_gray, breadth_first, border_radius=12)
+        breadth_first_text = default_font.render("breadth first", True, text_gray)
+    level_div_main.blit(breadth_first_text, breadth_first_text.get_rect(center=breadth_first.center))
 
     # BLIT MAIN DIV TO DISPLAY (Must be before the maze, otherwise it covers the maze)
     display.blit(level_div_main, (level_div_main_pos_x, level_div_main_pos_y))
 
-    # --- MAZE ---
-    """
-    maze_pattern = [
-        # Row 0 (Entry at 19)
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-         1, 1, 1],
-        # Rows 1-2 (Open hall)
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-         0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-         0, 0, 1],
-        # Rows 3-5 (Pillars area)
-        [1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0,
-         0, 0, 1],
-        [1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0,
-         0, 0, 1],
-        [1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0,
-         0, 0, 1],
-        # Rows 6-7 (Wall separating top and middle arenas - with 2 gates)
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-         1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-         1, 1, 1],
-        # Rows 8-11 (Middle Open Arena 1)
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-         0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-         0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-         0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-         0, 0, 1],
-        # Rows 12-14 (Wall blocks breaking the center)
-        [1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0,
-         0, 0, 1],
-        [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
-         0, 0, 1],
-        [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
-         0, 0, 1],
-        # Rows 15-17 (Middle Open Arena 2)
-        [1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0,
-         0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-         0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-         0, 0, 1],
-        # Rows 18-19 (Horizontal Separator 2 - with 2 gates)
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-         1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-         1, 1, 1],
-        # Row 20 (Open horizontal hallway bridging arenas and the labyrinth below)
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-         0, 0, 1],
-        # Row 21 (Labyrinth Starts - 3 Entrances at columns 1, 19, and 38)
-        [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-         1, 0, 1],
-        [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-         1, 0, 1],
-        [1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-         1, 0, 1],
-        # Row 37 (Massive horizontal hallway merging labyrinth paths to the center)
-        [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-         1, 0, 1],
-        # Row 38 (Final bottleneck)
-        [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-         1, 0, 1],
-        # Row 39 (Exit at 19)
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-         1, 1, 1]
-    ]
-    """
-    maze_pattern = [
-        [2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-        [0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-        [0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
-        [0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1],
-        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-        [0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0],
-        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-        [0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0],
-        [0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
-        [0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0],
-        [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-        [1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-        [0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0],
-        [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 3]
-    ]
     for line in range(lines):
         for column in range(columns):
             cell = maze_pattern[line][column]
 
             cell_pos_x = (column * cell_size) + level_div_main_pos_x
-            # Adding 80 to distance the maze from the top bar
+
             cell_pos_y = (line * cell_size) + level_div_main_pos_y + 60
 
             cell_rect = pygame.Rect(cell_pos_x, cell_pos_y, cell_size, cell_size)
 
-            if cell == 1:
+            if cell == 1: # wall
                 pygame.draw.rect(display, gray, cell_rect)
-            elif cell == 0:
+            elif cell == 0: # free path
                 pygame.draw.rect(display, white, cell_rect)
-            elif cell == 2: # begin
+            elif cell == 2: # start
                 pygame.draw.rect(display, green, cell_rect)
-            elif cell == 3:
+            elif cell == 3: # end
                 pygame.draw.rect(display, red, cell_rect)
+            elif cell == 4: # explored path
+                pygame.draw.rect(display, (200,200,200), cell_rect)
+            elif cell == 5: # explored path
+                pygame.draw.rect(display, (150,200,150), cell_rect)
+
 
 
 # ============================================ MAIN LOOP ==================================================
@@ -336,10 +282,34 @@ while running:
                     if confirm_sound: confirm_sound.play()
                     screen = 0  # Back to menu!
 
-                # Help button check
-                if help_button.collidepoint(mouse_local_x, mouse_local_y):
-                    #if confirm_sound: confirm_sound.play()
-                    print('help button clicked')
+                # Generate a new random maze button check
+                if gen_random_maze.collidepoint(mouse_local_x, mouse_local_y):
+                    maze_pattern = AuxFunctions.gen_randon_maze(20,20, (0,0),(19,19),100)
+
+                # breadth_first_search check
+                if breadth_first.collidepoint(mouse_local_x, mouse_local_y):
+                    # 1. Cria a função que desenha, atualiza e pausa
+                    def animar_busca():
+                        level_one()  # Redesenha o mapa com os novos '4's
+                        pygame.display.flip()  # Atualiza a tela do monitor
+                        pygame.time.delay(10)  # Pausa por 20 milissegundos (ajuste a velocidade aqui!)
+                        pygame.event.pump()  # Impede o Windows de achar que o jogo travou
+
+
+                    # 2. Passa essa função como último parâmetro!
+                    path = np_searcher.breadth_first_search((0, 0), (19, 19), 20, 20, maze_pattern, animar_busca)
+                    path.pop(0)
+                    if path != None:
+                        for step in range(len(path)-1):
+                            cell = path[step]
+                            maze_pattern[cell[0]][cell[1]] = 5
+
+
+                    else:
+                        show_popup('Nenhum caminho foi encontrado!')
+
+
+
 
     # RENDER CORRECT SCREEN BASED ON 'screen' VARIABLE
     if screen == 0:
