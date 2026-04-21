@@ -27,10 +27,7 @@ class NPsearch(object):
                     # Add to successors list
                     q.append([next_x, next_y])
 
-                    # 3. Visualization check:
-                    # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
-                    if maze[next_x][next_y] == 0:
-                        maze[next_x][next_y] = 4
+
 
         # Returning reversed list to maintain search order consistency
         return q[::-1]
@@ -91,6 +88,11 @@ class NPsearch(object):
             # Search for neighbors
             neigh = self.neighbors(current.state, nx, ny, maze)
 
+            # 3. Visualization check:
+            # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
+            if maze[current.state[0]][current.state[1]] == 0:
+                maze[current.state[0]][current.state[1]] = 4
+
             if update_ui:
                 update_ui()
 
@@ -139,6 +141,10 @@ class NPsearch(object):
             # Search for neighbors
             neighs = self.neighbors(current.state, nx, ny, maze)
 
+            # 3. Visualization check:
+            # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
+            if maze[current.state[0]][current.state[1]] == 0:
+                maze[current.state[0]][current.state[1]] = 4
             if update_ui:
                 update_ui()
 
@@ -187,6 +193,11 @@ class NPsearch(object):
                 # Search for neighbors
                 neighs = self.neighbors(current.state, nx, ny, maze)
 
+                # 3. Visualization check:
+                # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
+                if maze[current.state[0]][current.state[1]] == 0:
+                    maze[current.state[0]][current.state[1]] = 4
+
                 if update_ui:
                     update_ui()
 
@@ -207,49 +218,64 @@ class NPsearch(object):
         return None
 
 
-def aprof_iterativo_grid(self, inicio, fim, nx, ny, mapa, lim_max):
-    # Finaliza se início for igual a objetivo
-    if inicio == fim:
-        return [inicio]
 
-    for lim in range(1, lim_max):
-        # GRID: transforma em tupla
-        t_inicio = tuple(inicio)
-        t_fim = tuple(fim)
+    def aprof_iterativo_grid(self, inicio, fim, nx, ny, mapa, lim_max, update_ui):
+        # Finaliza se início for igual a objetivo
+        if inicio == fim:
+            return [inicio]
 
-        # Lista para árvore de busca - FILA
-        pilha = deque()
+        for lim in range(1, lim_max):
 
-        # Inclui início como nó raíz da árvore de busca
-        raiz = Node(None, t_inicio, 0, None, None)
-        pilha.append(raiz)
+            for r in range(nx):
+                for c in range(ny):
+                    if mapa[r][c] == 4:
+                        mapa[r][c] = 0
 
-        # Marca início como visitado
-        visitado = {}
-        visitado[t_inicio] = 0
+            # GRID: transforma em tupla
+            t_inicio = tuple(inicio)
+            t_fim = tuple(fim)
 
-        while pilha:
-            # Remove o primeiro da FILA
-            atual = pilha.pop()
+            # Lista para árvore de busca - FILA
+            pilha = deque()
 
-            if atual.v1 < lim:
-                # Gera sucessores a partir do grid
-                filhos = self.sucessores_grid(atual.estado, nx, ny, mapa)
+            # Inclui início como nó raíz da árvore de busca
+            raiz = NPnode(None, t_inicio, 0, None, None)
+            pilha.append(raiz)
 
-                for novo in filhos:
-                    t_novo = tuple(novo)
-                    flag = True
-                    if t_novo in visitado:
-                        if visitado[t_novo] <= atual.v1 + 1:
-                            flag = False
-                    if flag:
-                        filho = Node(atual, novo, atual.v1 + 1, None, None)
-                        pilha.append(filho)
-                        visitado[t_novo] = atual.v1 + 1
+            # Marca início como visitado
+            visitado = {}
+            visitado[t_inicio] = 0
 
-                        # Verifica se encontrou o objetivo
-                        if t_novo == t_fim:
-                            return self.exibirCaminho(filho)
-        visitado.clear()
-        pilha.clear()
-    return None
+            while pilha:
+                # Remove o primeiro da FILA
+                atual = pilha.pop()
+
+                if atual.depth < lim:
+                    # Gera sucessores a partir do grid
+                    filhos = self.neighbors(atual.state, nx, ny, mapa)
+
+                    # 3. Visualization check:
+                    # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
+                    if mapa[atual.state[0]][atual.state[1]] == 0:
+                        mapa[atual.state[0]][atual.state[1]] = 4
+
+                    if update_ui:
+                        update_ui()
+
+                    for novo in filhos:
+                        t_novo = tuple(novo)
+                        flag = True
+                        if t_novo in visitado:
+                            if visitado[t_novo] <= atual.depth + 1:
+                                flag = False
+                        if flag:
+                            filho = NPnode(atual, novo, atual.depth + 1, None, None)
+                            pilha.append(filho)
+                            visitado[t_novo] = atual.depth + 1
+
+                            # Verifica se encontrou o objetivo
+                            if t_novo == t_fim:
+                                return self.show_path(filho)
+            visitado.clear()
+            pilha.clear()
+        return None
