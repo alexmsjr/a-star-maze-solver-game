@@ -143,7 +143,7 @@ class Slider:
             pos_x = max(self.rect.left, min(event.pos[0], self.rect.right - self.handle_rect.w))
             self.handle_rect.x = pos_x
             self.val = int(self.min_val + ((pos_x - self.rect.left) / (self.rect.width - self.handle_rect.w) * (
-                        self.max_val - self.min_val)))
+                    self.max_val - self.min_val)))
 
     def draw(self, screen):
         pygame.draw.rect(screen, bg_main, self.rect, border_radius=8)
@@ -155,7 +155,14 @@ class Slider:
         screen.blit(val_surf, val_surf.get_rect(center=val_box.center))
 
 
-### --- ESTADO GLOBAL E GEOMETRIA ---
+### --- LÓGICA DE INTERRUPÇÃO E ESTADO GLOBAL ---
+# Exceção customizada para parar o algoritmo de forma segura
+class InterromperBusca(Exception): pass
+
+
+running_algo_id = None  # Qual algoritmo está rodando na tela agora
+next_algo_id = None  # Qual algoritmo o usuário quer rodar logo em seguida
+
 sidebar_w = 550
 margin = 20
 top_margin = 100
@@ -164,7 +171,6 @@ SIZE_OPTIONS = [40, 60, 80, 100, 200]
 ui_selected_size = 40
 applied_size = 40
 
-# INICIALIZAÇÃO CORRETA: O Labirinto inicia na paridade correta (40, 40)
 inputs = {
     'st_x': CaixaTexto(margin + 175, top_margin + 70, 50, 35, '0'),
     'st_y': CaixaTexto(margin + 235, top_margin + 70, 50, 35, '0'),
@@ -226,7 +232,8 @@ def draw_text(s, t, f, c, pos, align='left'):
     s.blit(surf, rect)
 
 
-def draw_sidebar(mouse_pos, pending_changes):
+# A função de desenho agora aceita "running_algo_id" para destacar o botão ativo
+def draw_sidebar(mouse_pos, pending_changes, running_algo_id=None):
     pygame.draw.rect(display, bg_main, (0, 0, sidebar_w, display_h))
 
     # ÁREA DA LOGO
@@ -251,7 +258,8 @@ def draw_sidebar(mouse_pos, pending_changes):
                    font=button_font)
 
     lbl_sai = pygame.Rect(margin + 15, top_margin + 120, 150, 35)
-    draw_3d_button(display, lbl_sai, white, dark_gray, "SAÍDA (X,Y)", pressed=False, text_color=text_dark, font=button_font)
+    draw_3d_button(display, lbl_sai, white, dark_gray, "SAÍDA (X,Y)", pressed=False, text_color=text_dark,
+                   font=button_font)
 
     btn_w = 46
     gap_w = 10
@@ -282,8 +290,20 @@ def draw_sidebar(mouse_pos, pending_changes):
     for algo in ALGORITMOS:
         btn, res = algo['rect'], results[algo['id']]
         is_hover = btn.collidepoint(mouse_pos)
-        draw_3d_button(display, btn, white if not is_hover else white_dark, gray, algo['name'], pressed=False,
-                       text_color=text_dark, font=button_font)
+        is_running = (algo['id'] == running_algo_id)  # NOVO: Checa se é o algoritmo rodando agora
+
+        # Lógica de cores baseada em estar rodando ou não
+        if is_running:
+            btn_color = yellow
+            text_color = text_dark
+            is_pressed = True
+        else:
+            btn_color = white_dark if is_hover else white
+            text_color = text_dark
+            is_pressed = False
+
+        draw_3d_button(display, btn, btn_color, gray, algo['name'], pressed=is_pressed, text_color=text_color,
+                       font=button_font)
 
         if algo.get('has_limit'): algo['limit_box'].draw(display)
 
@@ -353,6 +373,7 @@ while running:
     except ValueError:
         pending_changes = True
 
+    # LOOP DE EVENTOS NORMAIS (Quando nenhum algoritmo está rodando)
     for event in pygame.event.get():
         if event.type == pygame.QUIT: running = False
 
@@ -370,19 +391,15 @@ while running:
                 start_x = 245
                 for i, size in enumerate(SIZE_OPTIONS):
                     btn_rect = pygame.Rect(start_x + (i * (btn_w + gap_w)), top_margin + 15, btn_w, 35)
-
                     if btn_rect.collidepoint(mouse_pos):
                         ui_selected_size = size
-
                         s_lines = get_safe_size(size)
                         inputs['st_x'].text, inputs['st_y'].text = '0', '0'
                         inputs['en_x'].text, inputs['en_y'].text = str(s_lines - 1), str(s_lines - 1)
-
                         inputs['st_x'].txt_surface = button_font.render('0', True, text_dark)
                         inputs['st_y'].txt_surface = button_font.render('0', True, text_dark)
                         inputs['en_x'].txt_surface = button_font.render(str(s_lines - 1), True, text_dark)
                         inputs['en_y'].txt_surface = button_font.render(str(s_lines - 1), True, text_dark)
-
                         play_sfx('click')
 
                 skip_btn_rect = pygame.Rect(margin + 15, 760, sidebar_w - (margin * 2) - 30, 40)
@@ -390,6 +407,7 @@ while running:
                     skip_anim = not skip_anim
                     play_sfx('click')
 
+            # Cliques no Labirinto
             if mouse_pos[0] > sidebar_w:
                 area_w, area_h = (display_l - sidebar_w) - 10, display_h - 10
                 offset_x, offset_y = sidebar_w + 5, 5
@@ -399,13 +417,11 @@ while running:
                     col, row = ((mouse_pos[0] - offset_x) * s_lines) // area_w, (
                                 (mouse_pos[1] - offset_y) * s_lines) // area_h
                     if 0 <= row < s_lines and 0 <= col < s_lines:
-
                         if event.button == 1:
                             maze_base[applied_start[0]][applied_start[1]] = 0
                             applied_start = (row, col)
                             maze_base[row][col] = 2
                             inputs['st_x'].text, inputs['st_y'].text = str(row), str(col)
-
                         elif event.button == 3:
                             maze_base[applied_end[0]][applied_end[1]] = 0
                             applied_end = (row, col)
@@ -416,10 +432,10 @@ while running:
                         inputs['st_y'].txt_surface = button_font.render(str(applied_start[1]), True, text_dark)
                         inputs['en_x'].txt_surface = button_font.render(str(applied_end[0]), True, text_dark)
                         inputs['en_y'].txt_surface = button_font.render(str(applied_end[1]), True, text_dark)
-
                         maze_display = copy.deepcopy(maze_base)
                         play_sfx('click')
 
+            # Botão de Aplicar
             if event.button == 1 and btn_aplicar.collidepoint(mouse_pos) and pending_changes:
                 try:
                     new_st = (int(inputs['st_x'].text), int(inputs['st_y'].text))
@@ -427,7 +443,6 @@ while running:
                     s_lines = get_safe_size(ui_selected_size)
 
                     if max(new_st[0], new_st[1], new_en[0], new_en[1]) >= s_lines:
-                        # Auto-correção passiva de limites
                         inputs['st_x'].text, inputs['st_y'].text = '0', '0'
                         inputs['en_x'].text, inputs['en_y'].text = str(s_lines - 1), str(s_lines - 1)
                         inputs['st_x'].txt_surface = button_font.render('0', True, text_dark)
@@ -436,16 +451,11 @@ while running:
                         inputs['en_y'].txt_surface = button_font.render(str(s_lines - 1), True, text_dark)
                         raise ValueError(f"Fora dos limites. Corrigido automaticamente.")
 
-                    # --- CHECAGEM DE PARIDADE MATEMÁTICA (A SALVAÇÃO DA TOPEIRA) ---
-                    # A topeira só escava em pulos de 2. Logo, a paridade (Par/Ímpar) do fim DEVE ser igual a do Início.
                     en_x, en_y = new_en
-                    if new_st[0] % 2 != en_x % 2:
-                        en_x = en_x - 1 if en_x > 0 else en_x + 1
-                    if new_st[1] % 2 != en_y % 2:
-                        en_y = en_y - 1 if en_y > 0 else en_y + 1
+                    if new_st[0] % 2 != en_x % 2: en_x = en_x - 1 if en_x > 0 else en_x + 1
+                    if new_st[1] % 2 != en_y % 2: en_y = en_y - 1 if en_y > 0 else en_y + 1
                     new_en = (en_x, en_y)
 
-                    # Atualiza as caixinhas na interface caso a correção tenha sido feita
                     inputs['en_x'].text, inputs['en_y'].text = str(en_x), str(en_y)
                     inputs['en_x'].txt_surface = button_font.render(str(en_x), True, text_dark)
                     inputs['en_y'].txt_surface = button_font.render(str(en_y), True, text_dark)
@@ -458,80 +468,112 @@ while running:
                     maze_display = copy.deepcopy(maze_base)
                     for k in results: results[k] = {'cost': '--', 'nodes': '--'}
                     play_sfx('click')
-
                 except ValueError as e:
                     play_sfx('error')
                     show_popup(f"Aviso: {e}")
 
+            # SELEÇÃO DO PRÓXIMO ALGORITMO A RODAR
             if event.button == 1 and mouse_pos[0] <= sidebar_w:
                 for algo in ALGORITMOS:
                     if 'rect' in algo and algo['rect'].collidepoint(mouse_pos):
                         play_sfx('click')
-                        algo_id = algo['id']
-                        maze_display = copy.deepcopy(maze_base)
-                        s_lines = get_safe_size(applied_size)
+                        next_algo_id = algo['id']
+
+    # --- NÚCLEO DE EXECUÇÃO DE ALGORITMOS ---
+    # Este loop permite que um algoritmo inicie logo após o outro ser interrompido
+    while next_algo_id is not None:
+        algo_id = next_algo_id
+        next_algo_id = None  # Limpamos a fila para não entrar num loop infinito
+
+        running_algo_id = algo_id  # Avisa a interface global quem está rodando (Fica amarelo!)
+        maze_display = copy.deepcopy(maze_base)
+        s_lines = get_safe_size(applied_size)
+        algo_dict = next(a for a in ALGORITMOS if a['id'] == algo_id)
 
 
-                        def animar_busca(current_lim=None):
-                            global skip_anim
-                            if skip_anim: return
-                            current_mouse_pos = pygame.mouse.get_pos()
-                            for ev in pygame.event.get():
-                                if ev.type == pygame.QUIT: pygame.quit(); sys.exit()
-                                speed_slider.handle_event(ev)
-                                if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and skip_btn_rect.collidepoint(
-                                        ev.pos):
-                                    skip_anim = True;
-                                    play_sfx('click')
+        # O Callback que roda a cada frame dentro da NPsearch
+        def animar_busca(current_lim=None):
+            global skip_anim, next_algo_id
+            if skip_anim: return
+            current_mouse_pos = pygame.mouse.get_pos()
 
-                            if current_lim is not None and algo_id == 'ids':
-                                algo['limit_box'].text = str(current_lim)
-                                algo['limit_box'].txt_surface = button_font.render(str(current_lim), True, text_dark)
+            # Aqui monitoramos interrupções em tempo real!
+            for ev in pygame.event.get():
+                if ev.type == pygame.QUIT: pygame.quit(); sys.exit()
+                speed_slider.handle_event(ev)
 
-                            draw_sidebar(current_mouse_pos, pending_changes)
-                            draw_maze()
-                            pygame.display.flip()
-                            if speed_slider.val > 0: pygame.time.delay(speed_slider.val)
+                if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                    if skip_btn_rect.collidepoint(ev.pos):
+                        skip_anim = True;
+                        play_sfx('click')
+                    elif ev.pos[0] <= sidebar_w:
+                        for a in ALGORITMOS:
+                            if 'rect' in a and a['rect'].collidepoint(ev.pos):
+                                play_sfx('click')
+                                next_algo_id = a['id']
+                                raise InterromperBusca()  # ABORTA A MISSÃO!
+
+            if current_lim is not None and algo_id == 'ids':
+                algo_dict['limit_box'].text = str(current_lim)
+                algo_dict['limit_box'].txt_surface = button_font.render(str(current_lim), True, text_dark)
+
+            draw_sidebar(current_mouse_pos, pending_changes, running_algo_id)
+            draw_maze()
+            pygame.display.flip()
+            if speed_slider.val > 0: pygame.time.delay(speed_slider.val)
 
 
-                        try:
-                            path = None
-                            if algo.get('has_limit') and not algo['limit_box'].text:
-                                raise ValueError("Defina um limite")
+        try:
+            path = None
+            if algo_dict.get('has_limit') and not algo_dict['limit_box'].text:
+                raise ValueError("Defina um limite")
 
-                            if algo_id == 'bfs':
-                                path = np_searcher.breadth_first_search(applied_start, applied_end, s_lines, s_lines,
-                                                                        maze_display, animar_busca)
-                            elif algo_id == 'dfs':
-                                path = np_searcher.depth_first_search(applied_start, applied_end, s_lines, s_lines,
-                                                                      maze_display, animar_busca)
-                            elif algo_id == 'dls':
-                                lim_dls = int(algo['limit_box'].text)
-                                path = np_searcher.depth_limited_search(applied_start, applied_end, s_lines, s_lines,
-                                                                        maze_display, lim_dls, animar_busca)
-                            elif algo_id == 'ids':
-                                lim_max_ids = int(algo['limit_box'].text)
-                                path = np_searcher.aprof_iterativo_grid(applied_start, applied_end, s_lines, s_lines,
-                                                                        maze_display, lim_max_ids, animar_busca)
-                                algo['limit_box'].text = str(lim_max_ids)
-                                algo['limit_box'].txt_surface = button_font.render(str(lim_max_ids), True, text_dark)
+            if algo_id == 'bfs':
+                path = np_searcher.breadth_first_search(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                        animar_busca)
+            elif algo_id == 'dfs':
+                path = np_searcher.depth_first_search(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                      animar_busca)
+            elif algo_id == 'dls':
+                lim_dls = int(algo_dict['limit_box'].text)
+                path = np_searcher.depth_limited_search(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                        lim_dls, animar_busca)
+            elif algo_id == 'ids':
+                lim_max_ids = int(algo_dict['limit_box'].text)
+                path = np_searcher.aprof_iterativo_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                        lim_max_ids, animar_busca)
+                algo_dict['limit_box'].text = str(lim_max_ids)
+                algo_dict['limit_box'].txt_surface = button_font.render(str(lim_max_ids), True, text_dark)
 
-                            if path:
-                                path.pop(0)
-                                for step in path:
-                                    if maze_display[step[0]][step[1]] not in [2, 3]: maze_display[step[0]][step[1]] = 5
-                                results[algo_id]['cost'] = str(len(path))
-                                results[algo_id]['nodes'] = str(sum(row.count(4) for row in maze_display) + len(path))
-                                play_sfx('success')
-                                if skip_anim: draw_maze(); pygame.display.flip()
-                            elif algo_id in ['bfs', 'dfs', 'dls', 'ids']:
-                                play_sfx('error');
-                                show_popup('Nenhum caminho encontrado')
+            if path:
+                path.pop(0)
+                for step in path:
+                    if maze_display[step[0]][step[1]] not in [2, 3]: maze_display[step[0]][step[1]] = 5
+                results[algo_id]['cost'] = str(len(path))
+                results[algo_id]['nodes'] = str(sum(row.count(4) for row in maze_display) + len(path))
+                play_sfx('success')
+                if skip_anim: draw_maze(); pygame.display.flip()
+            elif algo_id in ['bfs', 'dfs', 'dls', 'ids']:
+                play_sfx('error');
+                show_popup('Nenhum caminho encontrado')
 
-                        except Exception as e:
-                            show_popup(f"Erro: {e}")
+        except InterromperBusca:
+            # Capturamos o aborto: O labirinto é resetado e os resultados descartados!
+            maze_display = copy.deepcopy(maze_base)
+            results[algo_id]['cost'] = '--'
+            results[algo_id]['nodes'] = '--'
+            # Se o usuário clicou no mesmo botão para cancelar, nós o impedimos de rodar de novo
+            if next_algo_id == algo_id:
+                next_algo_id = None
 
-    draw_sidebar(mouse_pos, pending_changes)
+        except Exception as e:
+            show_popup(f"Erro: {e}")
+
+        finally:
+            running_algo_id = None  # Libera a interface, o botão levanta e volta à cor normal
+
+    # RENDERIZAÇÃO PADRÃO DA TELA (Quando está tudo parado)
+    draw_sidebar(mouse_pos, pending_changes, running_algo_id)
     draw_maze()
     pygame.display.flip()
 
