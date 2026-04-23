@@ -145,6 +145,7 @@ class NPsearch(object):
             # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
             if maze[current.state[0]][current.state[1]] == 0:
                 maze[current.state[0]][current.state[1]] = 4
+
             if update_ui:
                 update_ui()
 
@@ -205,7 +206,7 @@ class NPsearch(object):
                     new_t = tuple(new)
                     flag = True
                     if new_t in visited:
-                        if visited[new_t] <= current.state + 1:
+                        if visited[new_t] <= current.depth + 1:
                             flag = False
                     if flag:
                         neigh = NPnode(current, new, current.depth + 1, None, None)
@@ -224,7 +225,7 @@ class NPsearch(object):
         if inicio == fim:
             return [inicio]
 
-        for lim in range(1, lim_max):
+        for lim in range(1, lim_max + 1):
 
             for r in range(nx):
                 for c in range(ny):
@@ -260,7 +261,7 @@ class NPsearch(object):
                         mapa[atual.state[0]][atual.state[1]] = 4
 
                     if update_ui:
-                        update_ui()
+                        update_ui(lim)
 
                     for novo in filhos:
                         t_novo = tuple(novo)
