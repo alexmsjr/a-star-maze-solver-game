@@ -1,3 +1,3 @@
-.venv
-.idea
-testes.py
+myEnv/
+__pycache__/
+*.pyc

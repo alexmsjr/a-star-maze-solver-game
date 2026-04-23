@@ -544,6 +544,9 @@ while running:
                                                         lim_max_ids, animar_busca)
                 algo_dict['limit_box'].text = str(lim_max_ids)
                 algo_dict['limit_box'].txt_surface = button_font.render(str(lim_max_ids), True, text_dark)
+            elif algo_id == 'bi':
+                path = np_searcher.bidirecional_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                      animar_busca)
 
             if path:
                 path.pop(0)
@@ -553,7 +556,7 @@ while running:
                 results[algo_id]['nodes'] = str(sum(row.count(4) for row in maze_display) + len(path))
                 play_sfx('success')
                 if skip_anim: draw_maze(); pygame.display.flip()
-            elif algo_id in ['bfs', 'dfs', 'dls', 'ids']:
+            elif algo_id in ['bfs', 'dfs', 'dls', 'ids','bi']:
                 play_sfx('error');
                 show_popup('Nenhum caminho encontrado')
 
