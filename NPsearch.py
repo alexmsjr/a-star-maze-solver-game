@@ -22,12 +22,10 @@ class NPsearch(object):
             if 0 <= next_x < nx and 0 <= next_y < ny:
 
                 # 2. Path check (Only moves through floor (0) or exit (3))
-                if maze[next_x][next_y] in [0, 3]:
+                if maze[next_x][next_y] != 1:
 
                     # Add to successors list
                     q.append([next_x, next_y])
-
-
 
         # Returning reversed list to maintain search order consistency
         return q[::-1]

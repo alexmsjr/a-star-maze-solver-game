@@ -4,10 +4,14 @@ import os
 import copy
 import AuxFunctions
 from NPsearch import NPsearch
+from Psearch import Psearch
+import traceback
+
 
 pygame.init()
 pygame.mixer.init()
 np_searcher = NPsearch()
+p_searcher = Psearch()
 
 ### DISPLAY SETUP
 display_l = 1400
@@ -43,6 +47,7 @@ color_maze_start = (46, 135, 10)
 color_maze_end = (255, 0, 0)
 color_maze_explored = (50, 100, 200)
 color_maze_path_found = yellow
+color_maze_dirt = (160, 82, 45)
 
 
 ### --- SISTEMA DE ARQUIVOS ---
@@ -76,7 +81,7 @@ ASSETS = {0: None, 1: None, 2: None, 3: None, 4: None, 5: None}
 
 
 def get_color(val): return {0: color_maze_path, 1: color_maze_wall, 2: color_maze_start, 3: color_maze_end,
-                            4: color_maze_explored, 5: color_maze_path_found}.get(val, white)
+                            4: color_maze_explored, 5: color_maze_path_found, 6: color_maze_dirt}.get(val, white)
 
 
 ### --- SISTEMA DE BOTÕES 3D FÍSICOS ---
@@ -422,6 +427,11 @@ while running:
                             applied_start = (row, col)
                             maze_base[row][col] = 2
                             inputs['st_x'].text, inputs['st_y'].text = str(row), str(col)
+                        elif event.button == 2:
+                            if maze_base[row][col] == 6:
+                                maze_base[row][col] = 0
+                            elif maze_base[row][col] == 0:  # Só vira terra se for caminho vazio
+                                maze_base[row][col] = 6
                         elif event.button == 3:
                             maze_base[applied_end[0]][applied_end[1]] = 0
                             applied_end = (row, col)
@@ -524,39 +534,57 @@ while running:
 
 
         try:
-            path = None
+            result_search = None
             if algo_dict.get('has_limit') and not algo_dict['limit_box'].text:
                 raise ValueError("Defina um limite")
 
             if algo_id == 'bfs':
-                path = np_searcher.breadth_first_search(applied_start, applied_end, s_lines, s_lines, maze_display,
+                result_search = np_searcher.breadth_first_search(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                         animar_busca)
             elif algo_id == 'dfs':
-                path = np_searcher.depth_first_search(applied_start, applied_end, s_lines, s_lines, maze_display,
+                result_search = np_searcher.depth_first_search(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                       animar_busca)
             elif algo_id == 'dls':
                 lim_dls = int(algo_dict['limit_box'].text)
-                path = np_searcher.depth_limited_search(applied_start, applied_end, s_lines, s_lines, maze_display,
+                result_search = np_searcher.depth_limited_search(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                         lim_dls, animar_busca)
             elif algo_id == 'ids':
                 lim_max_ids = int(algo_dict['limit_box'].text)
-                path = np_searcher.aprof_iterativo_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
+                result_search = np_searcher.aprof_iterativo_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                         lim_max_ids, animar_busca)
                 algo_dict['limit_box'].text = str(lim_max_ids)
                 algo_dict['limit_box'].txt_surface = button_font.render(str(lim_max_ids), True, text_dark)
             elif algo_id == 'bi':
-                path = np_searcher.bidirecional_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
+                result_search = np_searcher.bidirecional_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                      animar_busca)
+            elif algo_id == 'ucs':
+                result_search = p_searcher.custo_uniforme_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                       animar_busca)
 
-            if path:
-                path.pop(0)
+            # TRATAMENTO DE RETORNO
+            if result_search:
+                if isinstance(result_search, tuple): # METODOS PONDERADOS RETORNAM UMA TUPLA COM A PATH E CUSTO SEPARADOS
+                    path, cost = result_search
+                else:
+                    path = result_search # NAO PONDERADOS RETORNAM SO O PATH, O CUSTO E O TAMANHO DA LISTA
+                    cost = len(path)
+
+                # Agora o 'path' é garantidamente uma lista, podemos dar o .pop()
+                if len(path) > 0:
+                    path.pop(0)
+
                 for step in path:
-                    if maze_display[step[0]][step[1]] not in [2, 3]: maze_display[step[0]][step[1]] = 5
-                results[algo_id]['cost'] = str(len(path))
+                    if maze_display[step[0]][step[1]] not in [2, 3]:
+                        maze_display[step[0]][step[1]] = 5
+
+                # Atualiza a interface com o custo real vindo do algoritmo!
+                results[algo_id]['cost'] = str(cost)
                 results[algo_id]['nodes'] = str(sum(row.count(4) for row in maze_display) + len(path))
+
                 play_sfx('success')
                 if skip_anim: draw_maze(); pygame.display.flip()
-            elif algo_id in ['bfs', 'dfs', 'dls', 'ids','bi']:
+
+            elif algo_id in ['bfs', 'dfs', 'dls', 'ids', 'bi', 'ucs']:
                 play_sfx('error');
                 show_popup('Nenhum caminho encontrado')
 
@@ -570,7 +598,19 @@ while running:
                 next_algo_id = None
 
         except Exception as e:
-            show_popup(f"Erro: {e}")
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+
+            # Pega o último frame (onde o erro realmente aconteceu)
+            details = traceback.extract_tb(exc_traceback)[-1]
+
+            arquivo = details.filename
+            linha = details.lineno
+            funcao = details.name
+
+            error_msg = f"Erro: {e}\nArquivo: {arquivo}\nLinha: {linha}"
+
+            # show_popup(error_msg) # Sua função de popup
+            print(error_msg)
 
         finally:
             running_algo_id = None  # Libera a interface, o botão levanta e volta à cor normal
