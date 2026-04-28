@@ -558,7 +558,13 @@ while running:
                 result_search = np_searcher.bidirecional_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                       animar_busca)
             elif algo_id == 'ucs':
-                result_search = p_searcher.custo_uniforme_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
+                result_search = p_searcher.uniform_cost(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                      animar_busca)
+            elif algo_id == 'greedy':
+                result_search = p_searcher.greedy(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                      animar_busca)
+            elif algo_id == 'astar':
+                result_search = p_searcher.a_star(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                       animar_busca)
 
             # TRATAMENTO DE RETORNO
@@ -584,7 +590,7 @@ while running:
                 play_sfx('success')
                 if skip_anim: draw_maze(); pygame.display.flip()
 
-            elif algo_id in ['bfs', 'dfs', 'dls', 'ids', 'bi', 'ucs']:
+            elif algo_id in ['bfs', 'dfs', 'dls', 'ids', 'bi', 'ucs', 'greedy', 'astar']:
                 play_sfx('error');
                 show_popup('Nenhum caminho encontrado')
 
