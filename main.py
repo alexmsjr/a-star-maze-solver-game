@@ -3,12 +3,15 @@ import sys
 import os
 import copy
 import random
+import traceback
 import AuxFunctions
 from NPsearch import NPsearch
+from Psearch import Psearch
 
 pygame.init()
 pygame.mixer.init()
 np_searcher = NPsearch()
+p_searcher = Psearch()
 
 ### DISPLAY SETUP
 display_l = 1600
@@ -44,6 +47,7 @@ color_maze_start = (46, 135, 10)
 color_maze_end = (255, 0, 0)
 color_maze_explored = (50, 100, 200)
 color_maze_path_found = yellow
+color_maze_dirt = (160, 82, 45)
 
 
 ### -------------------------------------------------------------------------
@@ -220,7 +224,8 @@ ASSETS = {
     3: {
         'h': load_img_auto_crop(os.path.join('maze', 'h_end.png')),
         'v': load_img_auto_crop(os.path.join('maze', 'v_end.png'))
-    }
+    },
+    6: load_img_auto_crop(os.path.join('maze', 'ground.png'))
 }
 
 def draw_3d_button(screen, rect, color, dark_color, text, pressed, text_color=white, font=button_font):
@@ -439,41 +444,51 @@ def draw_maze():
     if thickness % 2 != 0:
         thickness -= 1
 
-        # ==============================================================
-    # PASSAGEM 1: BASE E BURACOS
+    # ==============================================================
+    # PASSAGEM 1: BASE (Terrenos Pesados - 6)
     # ==============================================================
     for r in range(s_lines):
         for c in range(s_lines):
-            x1, y1, x2, y2 = get_rect(r, c)
-            cell = maze_display[r][c]
-            # Reservado para buracos/terrenos customizados no futuro
+            # Lê da base para nunca esquecer que aqui tem textura, mesmo após a busca passar!
+            if maze_base[r][c] == 6:
+                x1, y1, x2, y2 = get_rect(r, c)
+                w_px, h_px = x2 - x1, y2 - y1
 
-        # ==============================================================
-        # PASSAGEM 2: ÁREA EXPLORADA (A Teia Azul Contínua - 4)
-        # ==============================================================
-        for r in range(s_lines):
-            for c in range(s_lines):
-                if maze_display[r][c] == 4:
-                    cx, cy = get_center(r, c)
-                    pygame.draw.circle(display, (50, 100, 200), (cx, cy), thickness // 2)
+                img_terra = ASSETS.get(6)
+                if img_terra:
+                    # Redimensiona a textura para cobrir a célula exata
+                    img_scaled = pygame.transform.scale(img_terra, (w_px, h_px))
+                    display.blit(img_scaled, (x1, y1))
+                else:
+                    # Fallback (Plano B) caso a imagem 'terra.png' não exista na pasta
+                    pygame.draw.rect(display, color_maze_dirt, (x1, y1, w_px, h_px), border_radius=4)
 
-                    # Desenhando com RETÂNGULOS (Flawless, sem quinas vazando)
-                    # Direita
-                    if c < s_lines - 1 and maze_display[r][c + 1] in [2, 3, 4, 5]:
-                        nx, ny = get_center(r, c + 1)
-                        pygame.draw.rect(display, (50, 100, 200), (cx, cy - thickness // 2, nx - cx, thickness))
-                    # Esquerda
-                    if c > 0 and maze_display[r][c - 1] in [2, 3, 4, 5]:
-                        nx, ny = get_center(r, c - 1)
-                        pygame.draw.rect(display, (50, 100, 200), (nx, cy - thickness // 2, cx - nx, thickness))
-                    # Baixo
-                    if r < s_lines - 1 and maze_display[r + 1][c] in [2, 3, 4, 5]:
-                        nx, ny = get_center(r + 1, c)
-                        pygame.draw.rect(display, (50, 100, 200), (cx - thickness // 2, cy, thickness, ny - cy))
-                    # Cima
-                    if r > 0 and maze_display[r - 1][c] in [2, 3, 4, 5]:
-                        nx, ny = get_center(r - 1, c)
-                        pygame.draw.rect(display, (50, 100, 200), (cx - thickness // 2, ny, thickness, cy - ny))
+    # ==============================================================
+    # PASSAGEM 2: ÁREA EXPLORADA (A Teia Azul Contínua - 4)
+    # ==============================================================
+    for r in range(s_lines):
+        for c in range(s_lines):
+            if maze_display[r][c] == 4:
+                cx, cy = get_center(r, c)
+                pygame.draw.circle(display, (50, 100, 200), (cx, cy), thickness // 2)
+
+                # Desenhando com RETÂNGULOS (Flawless, sem quinas vazando)
+                # Direita
+                if c < s_lines - 1 and maze_display[r][c + 1] in [2, 3, 4, 5]:
+                    nx, ny = get_center(r, c + 1)
+                    pygame.draw.rect(display, (50, 100, 200), (cx, cy - thickness // 2, nx - cx, thickness))
+                # Esquerda
+                if c > 0 and maze_display[r][c - 1] in [2, 3, 4, 5]:
+                    nx, ny = get_center(r, c - 1)
+                    pygame.draw.rect(display, (50, 100, 200), (nx, cy - thickness // 2, cx - nx, thickness))
+                # Baixo
+                if r < s_lines - 1 and maze_display[r + 1][c] in [2, 3, 4, 5]:
+                    nx, ny = get_center(r + 1, c)
+                    pygame.draw.rect(display, (50, 100, 200), (cx - thickness // 2, cy, thickness, ny - cy))
+                # Cima
+                if r > 0 and maze_display[r - 1][c] in [2, 3, 4, 5]:
+                    nx, ny = get_center(r - 1, c)
+                    pygame.draw.rect(display, (50, 100, 200), (cx - thickness // 2, ny, thickness, cy - ny))
 
         # ==============================================================
         # PASSAGEM 3: CAMINHO FINAL (A Linha Amarela Superior - 5)
@@ -532,9 +547,7 @@ def draw_maze():
 
                 display.blit(img_scaled, (draw_x, draw_y))
 
-
-
-            elif cell in ASSETS and ASSETS[cell]:
+            elif cell in [2, 3]:
 
                 if cell == 2:
 
@@ -701,6 +714,12 @@ while running:
                             estacionar_carros(maze_base, s_lines, reparar=True)
                             inputs['st_x'].text, inputs['st_y'].text = str(row), str(col)
 
+                        elif event.button == 2:  # MEIO: Pinta/Apaga Terra (Pesada)
+                            if maze_base[row][col] == 6:
+                                maze_base[row][col] = 0
+                            elif maze_base[row][col] == 0:
+                                maze_base[row][col] = 6
+
                         elif event.button == 3:
                             maze_base[applied_end[0]][applied_end[1]] = 0
 
@@ -715,10 +734,10 @@ while running:
                             maze_base[row][col] = 3
                             estacionar_carros(maze_base, s_lines, reparar=True)
                             inputs['en_x'].text, inputs['en_y'].text = str(row), str(col)
-
-                        for k in inputs: inputs[k].txt_surface = button_font.render(inputs[k].text, True, text_dark)
-                        maze_display = copy.deepcopy(maze_base)
-                        play_sfx('click')
+                        if event.button in [1, 2, 3]:
+                            for k in inputs: inputs[k].txt_surface = button_font.render(inputs[k].text, True, text_dark)
+                            maze_display = copy.deepcopy(maze_base)
+                            play_sfx('click')
 
             # BOTÃO APLICAR MODIFICAÇÕES
             if event.button == 1 and btn_aplicar.collidepoint(mouse_pos) and pending_changes:
@@ -808,39 +827,63 @@ while running:
 
 
         try:
-            path = None
+            result_search = None
             if algo_dict.get('has_limit') and not algo_dict['limit_box'].text: raise ValueError("Defina um limite")
             if algo_id == 'bfs':
-                path = np_searcher.breadth_first_search(applied_start, applied_end, s_lines, s_lines, maze_display,
+                result_search = np_searcher.breadth_first_search(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                         animar_busca)
             elif algo_id == 'dfs':
-                path = np_searcher.depth_first_search(applied_start, applied_end, s_lines, s_lines, maze_display,
+                result_search = np_searcher.depth_first_search(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                       animar_busca)
             elif algo_id == 'dls':
-                path = np_searcher.depth_limited_search(applied_start, applied_end, s_lines, s_lines, maze_display,
+                result_search = np_searcher.depth_limited_search(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                         int(algo_dict['limit_box'].text), animar_busca)
             elif algo_id == 'ids':
-                path = np_searcher.aprof_iterativo_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
+                result_search = np_searcher.aprof_iterativo_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                         int(algo_dict['limit_box'].text), animar_busca)
+            elif algo_id == 'bi':
+                result_search = np_searcher.bidirecional_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                      animar_busca)
+            elif algo_id == 'ucs':
+                result_search = p_searcher.custo_uniforme_grid(applied_start, applied_end, s_lines, s_lines,
+                                                               maze_display, animar_busca)
+            # TRATAMENTO DE RETORNO ATUALIZADO
+            if result_search:
+                if isinstance(result_search, tuple):  # Algoritmos com peso retornam tupla
+                    path, cost = result_search
+                else:
+                    path = result_search  # Algoritmos antigos retornam só o path
+                    cost = len(path)
 
-            if path:
-                path.pop(0)
+                if len(path) > 0:
+                    path.pop(0)
+
                 for step in path:
                     if maze_display[step[0]][step[1]] not in [2, 3]: maze_display[step[0]][step[1]] = 5
-                results[algo_id]['cost'] = str(len(path))
+
+                results[algo_id]['cost'] = str(cost)
                 results[algo_id]['nodes'] = str(sum(row.count(4) for row in maze_display) + len(path))
+
                 play_sfx('success')
                 if skip_anim: draw_maze(); pygame.display.flip()
-            elif algo_id in ['bfs', 'dfs', 'dls', 'ids']:
-                play_sfx('error');
-                show_popup('Nenhum caminho encontrado')
+
+            else:
+                # Se caiu aqui, ou o algoritmo não achou caminho, ou ainda não foi implementado!
+                play_sfx('error')
+                show_popup('Nenhum caminho encontrado ou algoritmo não implementado')
 
         except InterromperBusca:
             maze_display = copy.deepcopy(maze_base)
             results[algo_id] = {'cost': '--', 'nodes': '--'}
             if next_algo_id == algo_id: next_algo_id = None
+
         except Exception as e:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            details = traceback.extract_tb(exc_traceback)[-1]
+            error_msg = f"Erro: {e}\nArquivo: {details.filename}\nLinha: {details.lineno}"
+            print(error_msg)
             show_popup(f"Erro: {e}")
+
         finally:
             running_algo_id = None
 
