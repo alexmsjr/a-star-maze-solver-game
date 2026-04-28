@@ -337,11 +337,15 @@ speed_slider = Slider(margin + 15, display_h - 85, sidebar_w - (margin * 2) - 30
 right_edge = sidebar_w - margin - 15
 btn_aplicar = pygame.Rect(right_edge - 200, top_margin + 70, 200, 85)
 
-ALGORITMOS = [{'id': 'bfs', 'name': 'BUSCA EM AMPLITUDE'}, {'id': 'dfs', 'name': 'BUSCA EM PROFUNDIDADE'},
+ALGORITMOS = [{'id': 'bfs', 'name': 'BUSCA EM AMPLITUDE'},
+              {'id': 'dfs', 'name': 'BUSCA EM PROFUNDIDADE'},
               {'id': 'dls', 'name': 'PROF. LIMITADA', 'has_limit': True},
-              {'id': 'ids', 'name': 'PROF. ITERATIVA', 'has_limit': True}, {'id': 'bi', 'name': 'BUSCA BIDIRECIONAL'},
-              {'id': 'ucs', 'name': 'CUSTO UNIFORME'}, {'id': 'greedy', 'name': 'BUSCA GULOSA'},
-              {'id': 'astar', 'name': 'A-STAR (A*)'}, {'id': 'ida', 'name': 'IDA*'}]
+              {'id': 'ids', 'name': 'PROF. ITERATIVA', 'has_limit': True},
+              {'id': 'bi', 'name': 'BUSCA BIDIRECIONAL'},
+              {'id': 'ucs', 'name': 'CUSTO UNIFORME'},
+              {'id': 'greedy', 'name': 'BUSCA GULOSA'},
+              {'id': 'astar', 'name': 'A-STAR (A*)'},
+              {'id': 'ida', 'name': 'IDA*'}]
 results = {}
 box_w, gap = 75, 10
 box3_x = right_edge - box_w;
@@ -550,9 +554,7 @@ def draw_maze():
             elif cell in [2, 3]:
 
                 if cell == 2:
-
                     # Lógica de Visão do Carro (Início)
-
                     direcao = 'right'
 
                     if c < s_lines - 1 and maze_display[r][c + 1] in [0, 4, 5, 3]:
@@ -571,22 +573,17 @@ def draw_maze():
 
                     if not surface: surface = next((img for img in ASSETS[cell].values() if img is not None), None)
 
-
                 elif cell == 3:
-
                     # Lógica da Faixa no Chão (Fim)
-
                     orientacao = 'h'  # Padrão
 
                     # Se a rua vem de Cima/Baixo, a faixa cruza na Horizontal (h)
-
                     if (r > 0 and maze_display[r - 1][c] in [0, 4, 5, 2]) or (
                             r < s_lines - 1 and maze_display[r + 1][c] in [0, 4, 5, 2]):
 
                         orientacao = 'h'
 
                     # Se a rua vem da Esquerda/Direita, a faixa cruza na Vertical (v)
-
                     elif (c > 0 and maze_display[r][c - 1] in [0, 4, 5, 2]) or (
                             c < s_lines - 1 and maze_display[r][c + 1] in [0, 4, 5, 2]):
 
@@ -597,7 +594,6 @@ def draw_maze():
                     if not surface: surface = next((img for img in ASSETS[cell].values() if img is not None), None)
 
                 # Fallback de segurança se a imagem não carregar
-
                 if not surface:
                     cor = (46, 135, 10) if cell == 2 else (255, 0, 0)
 
@@ -606,25 +602,18 @@ def draw_maze():
                     continue
 
                 orig_w, orig_h = surface.get_size()
-
                 w_px, h_px = (x2 - x1), (y2 - y1)
 
                 # Multiplicador: 1.60 para o Carro ficar grandão, 1.15 para a faixa cobrir a rua sem vazar pras paredes
-
                 multiplier = 2.5 if cell == 2 else 1
 
                 scale = min(w_px / orig_w, h_px / orig_h) * multiplier
-
                 new_w, new_h = int(orig_w * scale), int(orig_h * scale)
-
                 img_scaled = pygame.transform.scale(surface, (new_w, new_h))
-
                 draw_x = x1 + (w_px - new_w) // 2
-
                 draw_y = y1 + (h_px - new_h) // 2
 
                 # Detalhe: Apenas o Carro (2) tem sombra. A faixa (3) é pintada chapada no asfalto!
-
                 if cell == 2:
                     shadow_surf = img_scaled.copy()
 
@@ -845,8 +834,15 @@ while running:
                 result_search = np_searcher.bidirecional_grid(applied_start, applied_end, s_lines, s_lines, maze_display,
                                                       animar_busca)
             elif algo_id == 'ucs':
-                result_search = p_searcher.custo_uniforme_grid(applied_start, applied_end, s_lines, s_lines,
-                                                               maze_display, animar_busca)
+                result_search = p_searcher.uniform_cost(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                        animar_busca)
+            elif algo_id == 'greedy':
+                result_search = p_searcher.greedy(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                  animar_busca)
+            elif algo_id == 'astar':
+                result_search = p_searcher.a_star(applied_start, applied_end, s_lines, s_lines, maze_display,
+                                                  animar_busca)
+
             # TRATAMENTO DE RETORNO ATUALIZADO
             if result_search:
                 if isinstance(result_search, tuple):  # Algoritmos com peso retornam tupla

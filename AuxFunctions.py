@@ -131,7 +131,7 @@ def profundidade_grid_topeira(inicio, fim, nx, ny):
             pilha.pop()  # Se nao encontar sucessores, volta no caminho e tenta escavar de novo
 
     # CRIAR MAIS CAMINHOS
-    qtdCaminhos = 5  # Quantidade estimada de caminhos
+    qtdCaminhos = 10  # Quantidade estimada de caminhos
     indexCaminho = int(
         len(caminhoPrincipal) / qtdCaminhos - 2)  # Cria um index para escolher pontos do caminho principal de forma espaçada
     indexAtual = indexCaminho  # Ex: Caminho principal com 30 pontos e 3 qtdCaminhos--> 30/3-2 = 8 --> Pontos escolidos (8,16,24)

@@ -51,14 +51,19 @@ class Psearch(object):
         path.reverse()
         return path
 
-
-    def find_node(self, valor, lista):
-        for no in reversed(lista):
+    def find_node(self, valor, queue):
+        for no in reversed(queue):
             if no.state == valor:
                 return no
 
+    def heuristic(self, start, end):
+        #print(start, end)
+        #print(start)
+        x = abs(start[0] - end[0])
+        y = abs(start[1] - end[1])
+        return x + y
 
-    def custo_uniforme_grid(self, start, end, nx, ny, maze, update_ui):  # grid
+    def uniform_cost(self, start, end, nx, ny, maze, update_ui):
         # Origem igual a destino
         if start == end:
             return [start], 0
@@ -103,4 +108,100 @@ class Psearch(object):
                     neigh = Pnode(current, t_new, v1, None, None, v2)
                     visited[t_new] = neigh
                     self.insert_ordered(queue,  neigh)
+        return None
+
+    def greedy(self, start, end, nx, ny, maze, update_ui):  # grid
+        # Origem igual a destino
+        if start == end:
+            return [start], 0
+
+        # Fila de prioridade baseada em deque + inserção ordenada
+        queue = deque()
+        t_start = tuple(start)
+        root = Pnode(None, t_start, 0, None, None, 0)
+        queue.append(root)
+
+        # Controle de nós visitados
+        visited = {tuple(start): root}
+
+        # loop de busca
+        while queue:
+            # remove o primeiro nó
+            current = queue.popleft()
+            current_value = current.v2
+
+            # Chegou ao objetivo
+            if current.state == end:
+                return self.show_path(current), current.v2
+
+            # Gera sucessores
+            neighbors = self.neighbors(current.state, nx, ny, maze)
+
+            # 3. Visualization check:
+            # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
+            if maze[current.state[0]][current.state[1]] == 0:
+                maze[current.state[0]][current.state[1]] = 4
+
+            if update_ui:
+                update_ui()
+
+            for new in neighbors:
+                # custo acumulado até o sucessor
+                v2 = current_value + new[1]
+                v1 = self.heuristic(new[0], end)
+
+                # Não visited ou custo melhor
+                t_new = tuple(new[0])
+                if (t_new not in visited) or (v2 < visited[t_new].v2):
+                    neigh = Pnode(current, t_new, v1, None, None, v2)
+                    visited[t_new] = neigh
+                    self.insert_ordered(queue, neigh)
+        return None
+
+    def a_star(self, start, end, nx, ny, maze, update_ui):
+        # Origem igual a destino
+        if start == end:
+            return [start], 0
+
+        # Fila de prioridade baseada em deque + inserção ordenada
+        queue = deque()
+        t_start = tuple(start)
+        root = Pnode(None, t_start, 0, None, None, 0)
+        queue.append(root)
+
+        # Controle de nós visitados
+        visited = {tuple(start): root}
+
+        # loop de busca
+        while queue:
+            # remove o primeiro nó
+            current = queue.popleft()
+            current_value = current.v2
+
+            # Chegou ao objetivo
+            if current.state == end:
+                return self.show_path(current), current.v2
+
+            # Gera sucessores
+            neighbors = self.neighbors(current.state, nx, ny, maze)
+
+            # 3. Visualization check:
+            # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
+            if maze[current.state[0]][current.state[1]] == 0:
+                maze[current.state[0]][current.state[1]] = 4
+
+            if update_ui:
+                update_ui()
+
+            for new in neighbors:
+                # custo acumulado até o sucessor
+                v2 = current_value + new[1]
+                v1 = v2 + self.heuristic(new[0], end)
+
+                # Não visited ou custo melhor
+                t_new = tuple(new[0])
+                if (t_new not in visited) or (v2 < visited[t_new].v2):
+                    neigh = Pnode(current, t_new, v1, None, None, v2)
+                    visited[t_new] = neigh
+                    self.insert_ordered(queue, neigh)
         return None
