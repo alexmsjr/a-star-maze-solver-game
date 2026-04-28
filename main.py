@@ -866,7 +866,7 @@ while running:
             else:
                 # Se caiu aqui, ou o algoritmo não achou caminho, ou ainda não foi implementado!
                 play_sfx('error')
-                show_popup('Nenhum caminho encontrado ou algoritmo não implementado')
+                show_popup('Nenhum caminho encontrado')
 
         except InterromperBusca:
             maze_display = copy.deepcopy(maze_base)
