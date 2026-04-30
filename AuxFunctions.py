@@ -28,12 +28,12 @@ def gen_randon_maze(nx, ny, walls):
             counter += 1
     return maze, maze_start, maze_end
 
-def create_maze(size):
+def create_maze(x,y):
 
         maze = []
-        for i in range(size):
+        for i in range(x):
             line = []
-            for j in range(size):
+            for j in range(y):
                 line.append(1)
             maze.append(line)
         return maze
@@ -83,7 +83,7 @@ def sucessores_grid_topeira(st, nx, ny, mapa, parede):
 def profundidade_grid_topeira(inicio, fim, nx, ny):
     caminhoPrincipal = []
 
-    mapa = create_maze(nx)
+    mapa = create_maze(nx,ny)
 
     # Finaliza se início for igual a objetivo
     if inicio == fim:
