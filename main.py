@@ -3,7 +3,7 @@ import sys
 import os
 import copy
 import random
-import traceback
+import webbrowser
 import AuxFunctions
 from NPsearch import NPsearch
 from Psearch import Psearch
@@ -71,8 +71,8 @@ color_maze_wall = (90, 90, 90)
 color_maze_path = (250, 250, 250)
 color_maze_start = (46, 135, 10)
 color_maze_end = (255, 0, 0)
-color_maze_explored = (50, 100, 200)
-color_maze_path_found = (226, 183, 20)
+color_maze_explored = led_blue
+color_maze_path_found = led_green
 color_maze_dirt = (160, 82, 45)
 
 FOOTER_H = sy(280)
@@ -106,18 +106,19 @@ def load_img_auto_crop(path):
 
 
 ASSETS = {
-    2: {'up': load_img_auto_crop(os.path.join('maze', 'up.png')),
-        'down': load_img_auto_crop(os.path.join('maze', 'down.png')),
-        'left': load_img_auto_crop(os.path.join('maze', 'left.png')),
-        'right': load_img_auto_crop(os.path.join('maze', 'right.png'))},
-    3: {'h': load_img_auto_crop(os.path.join('maze', 'h_end.png')),
-        'v': load_img_auto_crop(os.path.join('maze', 'v_end.png'))},
-    6: load_img_auto_crop(os.path.join('maze', 'ground.png'))
+    2: {'up': load_img_auto_crop(os.path.join('assets', 'up.png')),
+        'down': load_img_auto_crop(os.path.join('assets', 'down.png')),
+        'left': load_img_auto_crop(os.path.join('assets', 'left.png')),
+        'right': load_img_auto_crop(os.path.join('assets', 'right.png'))},
+    3: {'h': load_img_auto_crop(os.path.join('assets', 'h_end.png')),
+        'v': load_img_auto_crop(os.path.join('assets', 'v_end.png'))},
+    6: load_img_auto_crop(os.path.join('assets', 'ground.png')),
+    'hammer': load_img_auto_crop(os.path.join('assets', 'hammer.png'))
 }
 
 
 class GerenciadorFrota:
-    def __init__(self, base_path="vehicles"):
+    def __init__(self, base_path="assets/vehicles"):
         self.catalogo = {}
         self.scan_vehicles(base_path)
 
@@ -149,7 +150,7 @@ class GerenciadorFrota:
         return random.choice(comp) if comp else None
 
 
-gerenciador_frota = GerenciadorFrota("vehicles")
+gerenciador_frota = GerenciadorFrota("assets/vehicles")
 veiculos_estacionados = {}
 
 
@@ -200,14 +201,8 @@ def estacionar_carros(maze_grid, rows, cols, reparar=False):
                     if orientacao:
                         v = gerenciador_frota.sortear_veiculo_exato(t, orientacao)
                         if v:
-                            dirs = [d for d in ['left', 'right'] if d in v['imagens']] if orientacao == 'H' else [d for
-                                                                                                                  d in
-                                                                                                                  ['up',
-                                                                                                                   'down']
-                                                                                                                  if
-                                                                                                                  d in
-                                                                                                                  v[
-                                                                                                                      'imagens']]
+                            dirs = [d for d in ['left', 'right'] if d in v['imagens']] if orientacao == 'H' else \
+                                [d for d in ['up','down'] if d in v['imagens']]
                             if dirs:
                                 df = random.choice(dirs)
                                 veiculos_estacionados[next_id] = {'surface': v['imagens'][df],
@@ -273,17 +268,46 @@ def draw_multiline_text(surface, text, font, color, rect):
         surface.blit(t_surf, t_surf.get_rect(centerx=rect.centerx, y=start_y + (i * line_h)))
 
 
+def draw_wrapped_text(surface, text, font, color, rect):
+    # Essa função quebra o texto automaticamente para não vazar da caixa!
+    raw_lines = text.split('\n')
+    lines = []
+    for raw_line in raw_lines:
+        words = raw_line.split(' ')
+        current_line = []
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            # Verifica se a frase couber na largura do retangulo
+            if font.size(test_line)[0] < rect.w:
+                current_line.append(word)
+            else:
+                lines.append(' '.join(current_line))
+                current_line = [word]
+        if current_line:
+            lines.append(' '.join(current_line))
+
+    line_h = font.get_linesize()
+    start_y = rect.y
+    for i, line in enumerate(lines):
+        t_surf = font.render(line, True, color)
+        surface.blit(t_surf, (rect.x, start_y + (i * line_h)))
+
+
 def show_popup(message):
     overlay = pygame.Surface((current_w, current_h), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 180))
     display.blit(overlay, (0, 0))
 
-    p_w, p_h = sx(500), sy(200)
+    # Aumentei o painel para caber o tutorial gigante!
+    p_w, p_h = sx(1200), sy(700)
     p_r = pygame.Rect((current_w - p_w) // 2, (current_h - p_h) // 2, p_w, p_h)
 
     draw_raised_panel(display, p_r, panel_base, border_width=6)
 
-    draw_multiline_text(display, message, font_btn_side, text_dark, pygame.Rect(p_r.x, p_r.y, p_r.w, p_r.h - sy(50)))
+    # Chama a nova função de quebra de texto, com uma margem de segurança
+    text_rect = pygame.Rect(p_r.x + sx(40), p_r.y + sy(40), p_r.w - sx(80), p_r.h - sy(90))
+    draw_wrapped_text(display, message, font_btn_side, text_dark, text_rect)
+
     draw_multiline_text(display, "CLIQUE PARA FECHAR", font_btn_algo, text_gray,
                         pygame.Rect(p_r.x, p_r.bottom - sy(50), p_r.w, sy(50)))
 
@@ -350,9 +374,9 @@ class VerticalSlider:
 ### =========================================================================
 ALGORITMOS = [
     {"id": "bfs", "nome": "BUSCA EM\nAMPLITUDE", "has_limit": False},
-    {"id": "dfs", "nome": "BUSCA EM\nPROFUNDID.", "has_limit": False},
-    {"id": "dls", "nome": "PROFUND.\nLIMITADA", "has_limit": True},
-    {"id": "ids", "nome": "PROFUND.\nITERATIVA", "has_limit": True},
+    {"id": "dfs", "nome": "BUSCA EM\nPROFUNDIDADE", "has_limit": False},
+    {"id": "dls", "nome": "PROFUNDIDADE\nLIMITADA", "has_limit": True},
+    {"id": "ids", "nome": "PROFUNDIDADE\nITERATIVA", "has_limit": True},
     {"id": "bi", "nome": "BUSCA\nBIDIRECIONAL", "has_limit": False},
     {"id": "ucs", "nome": "CUSTO\nUNIFORME", "has_limit": False},
     {"id": "grd", "nome": "BUSCA\nGULOSA", "has_limit": False},
@@ -741,7 +765,6 @@ speed_slider = VerticalSlider(
     pygame.Rect(p_slider_rect.x + sx(10), p_slider_rect.y + sy(20), p_slider_rect.w - sx(20), p_slider_rect.h - sy(40)),
     0, 100, 50)
 
-# MUDANÇA: Correção drástica do espaçamento dos Algoritmos e Rótulos
 label_w = sx(95)
 col_w = (center_rect.w - label_w - sx(5)) / 9.0
 start_x = center_rect.x + label_w
@@ -779,6 +802,34 @@ while running:
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mouse_click = True
+
+            # --- Clicks em HELP e ABOUT ---
+            if mouse_click and btn_help.collidepoint(mouse_pos):
+                play_sfx('click')
+                texto_help = (
+                    "1. Customizar Labirinto: Ao clicar nesse botão outro painel é revelado."
+                    "\nChamamos essa aba de aba de customização do labirinto, nela você encontra:"
+                    "\n1.1 Botões 'Tamanho do Labirinto': Ao clicar nesse em um desses botões você seleciona um novo tamanho para o labirinto. Importante destacar que esse mudança só é aplicada quando o botão 'aplicar modificações for pressionado'."
+                    "\n1.2 Botões 'Ferramentas':"
+                    "\n1.2.1 Botão Alterar Origem: representado pelo carrinho, ao clicar nele, ele ficará pressionado e você poderá clicar no labirinto e escolher onde quer colocar a origem."
+                    "\n1.2.2 Botão Definir o objetivo: representado por uma linha de chegada, funciona do mesmo forma que o botão de origem. "
+                    "\n1.2.3 Botão Quebrar Asfalto: representado por uma marreta, ele quebra o asfalto e aumenta o custo daquele nó de 1 para 10."
+                    "\nOBS: Esses botões também podem ser usados para quebrar paredes do labirinto, caso desejar, pois ao colocar a Origem/Objetivo em uma parede, ela é quebrada e dá lugar a Origem/Objetivo. "
+                    "\n1.3 Botão 'Aplicar Modificações': Esse botão só se ativa caso o tamanho do labirinto seja alterado. Ao pressiona-lo a mudança é aplicada. Importante destacar que as paredes irão ser alteradas e o chão é resetado."
+                    "\n1.4 Botão 'Aleatorizar': Esse botão apenas cria um novo labirinto usando o tamanho, origem e objetivo atual."
+                    "\nAo clicar no botão 'Customizar Labirinto' novamente, a aba se esconde."
+                    "\n2. Pular Animações: Ao ativar esse botão, que se comporta como um interruptor, as animações de busca serão puladas."
+                    "\n3. Logo ao lado desse painel, é possível ver um Slider, ele define a velocidade da animação, ele começa sempre na metade, definido o valor de 50ms de delay. Quanto mais para cima o Slider for empurrado, menor será o delay, o que resulta em uma animação mais rápida."
+                    "\n4. Botões dos Algoritmos de Busca: No painel central, estão dispostos nove botões, cada um realiza um algoritmo de busca diferente. Logo acima deles ficam três displays, de cima pra baixo, o primeiro display mostra qual o custo total do caminho encontrado. O segundo mostra quantos nós formam explorados para encontrar esse caminho(Os métodos Profundidade Iterativa e IDA* consideram todas as iterações, somando todos os nós explorados na busca). O terceiro mostra o limite que será aplicado no algoritmo, o usuário deve clicar nele e digitar qual limite ele deseja definir. O terceiro display só é usado nos métodos de Profundidade Limitada e Profundidade Iterativa."
+                    "\n7. Botão 'Sobre': Leva para o ReadMe mais completo no GitHub."
+                    "\n8. Botão 'Sair': Ao clicar o software é finalizado."
+                )
+                show_popup(texto_help)
+
+            if mouse_click and btn_about.collidepoint(mouse_pos):
+                play_sfx('click')
+                link_github = "https://github.com/alexmsjr/a-star-maze-solver-game/blob/main/README.md"
+                webbrowser.open(link_github)
 
             # --- Clicks no Labirinto (Atualização Instantânea) ---
             if mouse_pos[1] < FOOTER_Y and active_tool:
@@ -864,6 +915,7 @@ while running:
                     active_tool = None
                     play_sfx('success')
 
+
         if event.type == pygame.KEYDOWN and active_limit_input:
             if event.key == pygame.K_BACKSPACE:
                 algo_limits[active_limit_input] = algo_limits[active_limit_input][:-1]
@@ -902,7 +954,7 @@ while running:
         display.set_clip(center_rect)
         draw_raised_panel(display, tab_rect, tab_bg, border_width=6, pressed=False, is_tab=True)
 
-        draw_fieldset(display, pygame.Rect(x_size, curr_tab_fs_y, w_size, curr_tab_fs_h), "MAZE SIZE", font_btn_algo,
+        draw_fieldset(display, pygame.Rect(x_size, curr_tab_fs_y, w_size, curr_tab_fs_h), "TAMANHO DO LABIRINTO", font_btn_algo,
                       text_gray, tab_bg)
         for j, val in enumerate(SIZE_OPTIONS):
             r = rects_sizes[j]
@@ -911,23 +963,40 @@ while running:
             display.blit(font_labels.render(str(val), True, text_dark),
                          font_labels.render(str(val), True, text_dark).get_rect(center=r.center))
 
-        draw_fieldset(display, pygame.Rect(x_tools, curr_tab_fs_y, w_tools, curr_tab_fs_h), "TOOLS", font_btn_algo,
+        draw_fieldset(display, pygame.Rect(x_tools, curr_tab_fs_y, w_tools, curr_tab_fs_h), "FERRAMENTAS", font_btn_algo,
                       text_gray, tab_bg)
         for tool_name, r in rects_tools.items():
             is_active = (active_tool == tool_name)
             draw_raised_panel(display, r, (200, 220, 255) if is_active else btn_white, pressed=is_active)
-            lbl = "CAR" if tool_name == "START" else "END" if tool_name == "END" else "BRK"
-            display.blit(font_btn_algo.render(lbl, True, text_dark),
-                         font_btn_algo.render(lbl, True, text_dark).get_rect(center=r.center))
 
-        draw_fieldset(display, pygame.Rect(x_caution, curr_tab_fs_y, w_caution, curr_tab_fs_h), "CAUTION",
+            # Puxando as imagens do dicionário ASSETS
+            icon_surf = None
+            if tool_name == "START":
+                icon_surf = ASSETS[2].get('right')
+            elif tool_name == "END":
+                icon_surf = ASSETS[3].get('h')
+            elif tool_name == "DIRT":
+                icon_surf = ASSETS.get('hammer')
+
+            # Renderiza a imagem perfeitamente centralizada e escalada
+            if icon_surf:
+                margin = sx(15)
+                img_w, img_h = icon_surf.get_size()
+                scale = min((r.w - margin) / img_w, (r.h - margin) / img_h)
+                new_w, new_h = int(img_w * scale), int(img_h * scale)
+
+                icon_scaled = pygame.transform.scale(icon_surf, (new_w, new_h))
+                icon_rect = icon_scaled.get_rect(center=r.center)
+                display.blit(icon_scaled, icon_rect)
+
+        draw_fieldset(display, pygame.Rect(x_caution, curr_tab_fs_y, w_caution, curr_tab_fs_h), "CUIDADO",
                       font_btn_algo, text_gray, tab_bg)
         draw_raised_panel(display, rect_apply, btn_yellow if pending_changes else panel_shadow,
                           pressed=(not pending_changes))
-        t_apply = font_btn_algo.render("APPLY MODIFICATIONS", True, text_dark)
+        t_apply = font_btn_algo.render("APLICAR MODIFICAÇÕES", True, text_dark)
         display.blit(t_apply, t_apply.get_rect(center=rect_apply.center))
 
-        draw_fieldset(display, pygame.Rect(x_random, curr_tab_fs_y, w_random, curr_tab_fs_h), "RANDOMIZE",
+        draw_fieldset(display, pygame.Rect(x_random, curr_tab_fs_y, w_random, curr_tab_fs_h), "ALEATORIZAR",
                       font_btn_algo, text_gray, tab_bg)
         draw_raised_panel(display, rect_rand, btn_red, pressed=False)
 
