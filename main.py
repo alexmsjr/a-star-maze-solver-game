@@ -1075,16 +1075,13 @@ while running:
             if result_search:
                 if isinstance(result_search, tuple) and len(result_search) == 3:
                     path, cost, total_nodes = result_search
-                    print("Custo")
                 elif isinstance(result_search, tuple) and len(result_search) == 2:
                     path, total_nodes= result_search
                     cost = len(path) - 1
-                    print("Interativo")
                 else:
                     path = result_search
                     cost = len(path)-1
                     total_nodes = sum(row.count(4) for row in maze_display) + len(path)
-                    print("Outros")
 
 
                 if len(path) > 0: path.pop(0)
