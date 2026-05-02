@@ -1004,17 +1004,26 @@ while running:
                                                     animar_busca)
 
             if result_search:
-                if isinstance(result_search, tuple):
-                    path, cost = result_search
+                if isinstance(result_search, tuple) and len(result_search) == 3:
+                    path, cost, total_nodes = result_search
+                    print("Custo")
+                elif isinstance(result_search, tuple) and len(result_search) == 2:
+                    path, total_nodes= result_search
+                    cost = len(path) - 1
+                    print("Interativo")
                 else:
-                    path = result_search;
+                    path = result_search
                     cost = len(path)-1
+                    total_nodes = sum(row.count(4) for row in maze_display) + len(path)
+                    print("Outros")
+
+
                 if len(path) > 0: path.pop(0)
                 for step in path:
                     if maze_display[step[0]][step[1]] not in [2, 3]: maze_display[step[0]][step[1]] = 5
 
                 results[algo_id]['cost'] = str(cost)
-                results[algo_id]['nodes'] = str(sum(row.count(4) for row in maze_display) + len(path))
+                results[algo_id]['nodes'] = str(total_nodes)
                 play_sfx('success')
             else:
                 play_sfx('error')

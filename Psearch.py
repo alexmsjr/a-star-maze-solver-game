@@ -66,7 +66,8 @@ class Psearch(object):
     def uniform_cost(self, start, end, nx, ny, maze, update_ui):
         # Origem igual a destino
         if start == end:
-            return [start], 0
+            return [start], 0, 0
+        total_nodes = 0
 
         # Fila de prioridade baseada em deque + inserção ordenada
         queue = deque()
@@ -81,11 +82,12 @@ class Psearch(object):
         while queue:
             # remove o primeiro nó
             current = queue.popleft()
+            total_nodes += 1
             current_value = current.v2
 
             # Chegou ao objetivo
             if current.state == end:
-                return self.show_path(current), current.v2
+                return self.show_path(current), current.v2, total_nodes
 
             # Gera sucessores - grid
             neighbors = self.neighbors(current.state, nx, ny, maze)
@@ -113,7 +115,8 @@ class Psearch(object):
     def greedy(self, start, end, nx, ny, maze, update_ui):  # grid
         # Origem igual a destino
         if start == end:
-            return [start], 0
+            return [start], 0, 0
+        total_nodes = 0
 
         # Fila de prioridade baseada em deque + inserção ordenada
         queue = deque()
@@ -128,11 +131,12 @@ class Psearch(object):
         while queue:
             # remove o primeiro nó
             current = queue.popleft()
+            total_nodes += 1
             current_value = current.v2
 
             # Chegou ao objetivo
             if current.state == end:
-                return self.show_path(current), current.v2
+                return self.show_path(current), current.v2,  total_nodes
 
             # Gera sucessores
             neighbors = self.neighbors(current.state, nx, ny, maze)
@@ -161,7 +165,8 @@ class Psearch(object):
     def a_star(self, start, end, nx, ny, maze, update_ui):
         # Origem igual a destino
         if start == end:
-            return [start], 0
+            return [start], 0, 0
+        total_nodes = 0
 
         # Fila de prioridade baseada em deque + inserção ordenada
         queue = deque()
@@ -176,11 +181,12 @@ class Psearch(object):
         while queue:
             # remove o primeiro nó
             current = queue.popleft()
+            total_nodes += 1
             current_value = current.v2
 
             # Chegou ao objetivo
             if current.state == end:
-                return self.show_path(current), current.v2
+                return self.show_path(current), current.v2, total_nodes
 
             # Gera sucessores
             neighbors = self.neighbors(current.state, nx, ny, maze)
@@ -209,10 +215,17 @@ class Psearch(object):
     def ida_star(self, start, end, nx, ny, maze, update_ui):
         # Origem igual a destino
         if start == end:
-            return [start], 0
+            return [start], 0, 0
         lim = self.heuristic(start, end)
+        total_nodes = 0
 
         while True:
+
+            for r in range(nx):
+                for c in range(ny):
+                    if maze[r][c] == 4:
+                        maze[r][c] = 0
+
             # Fila de prioridade baseada em deque + inserção ordenada
             queue = deque()
             t_start = tuple(start)
@@ -229,9 +242,11 @@ class Psearch(object):
                 current = queue.popleft()
                 current_value = current.v2
 
+                total_nodes += 1
+
                 # Chegou ao objetivo
                 if current.state == end:
-                    return self.show_path(current), current.v2
+                    return self.show_path(current), current.v2, total_nodes
 
                 # Gera sucessores
                 neighbors = self.neighbors(current.state, nx, ny, maze)
