@@ -554,7 +554,7 @@ def draw_footer(mouse_pos, mouse_click):
     draw_raised_panel(display, p_left_rect, panel_base, pressed=False)
 
     draw_raised_panel(display, btn_blue_rect, btn_blue, pressed=show_custom_tab)
-    draw_multiline_text(display, "CUSTOM\nMAZE", font_btn_algo, btn_white, btn_blue_rect)
+    draw_multiline_text(display, "CUSTOMIZAR\nLABIRINTO", font_btn_algo, btn_white, btn_blue_rect)
     if mouse_click and btn_blue_rect.collidepoint(mouse_pos):
         show_custom_tab = not show_custom_tab
         active_tool = None
@@ -564,7 +564,7 @@ def draw_footer(mouse_pos, mouse_click):
             interromper_agora = True  # Prepara para interromper
 
     # Toggle Escuro de Pular Animação
-    draw_fieldset(display, skip_fs_rect, "SKIP ANIMATIONS", font_btn_algo, text_gray, panel_base)
+    draw_fieldset(display, skip_fs_rect, "PULAR ANIMAÇÕES", font_btn_algo, text_gray, panel_base)
 
     # ATUALIZAÇÃO: Checa o clique ANTES de desenhar para mudar a cor na hora
     if mouse_click and btn_skip_rect.collidepoint(mouse_pos):
@@ -605,12 +605,12 @@ def draw_footer(mouse_pos, mouse_click):
     draw_raised_panel(display, btn_about, btn_white, pressed=(mouse_click and btn_about.collidepoint(mouse_pos)))
     draw_raised_panel(display, btn_quit, btn_white, pressed=(mouse_click and btn_quit.collidepoint(mouse_pos)))
 
-    display.blit(font_btn_side.render("HELP", True, text_gray),
-                 font_btn_side.render("HELP", True, text_gray).get_rect(center=btn_help.center))
-    display.blit(font_btn_side.render("ABOUT", True, text_gray),
-                 font_btn_side.render("ABOUT", True, text_gray).get_rect(center=btn_about.center))
-    display.blit(font_btn_side.render("QUIT", True, text_gray),
-                 font_btn_side.render("QUIT", True, text_gray).get_rect(center=btn_quit.center))
+    display.blit(font_btn_side.render("AJUDA", True, text_gray),
+                 font_btn_side.render("AJUDA", True, text_gray).get_rect(center=btn_help.center))
+    display.blit(font_btn_side.render("SOBRE", True, text_gray),
+                 font_btn_side.render("SOBRE", True, text_gray).get_rect(center=btn_about.center))
+    display.blit(font_btn_side.render("SAIR", True, text_gray),
+                 font_btn_side.render("SAIR", True, text_gray).get_rect(center=btn_quit.center))
 
     if mouse_click and btn_quit.collidepoint(mouse_pos):
         running = False
@@ -626,15 +626,15 @@ def draw_footer(mouse_pos, mouse_click):
     start_x_algo = center_rect.x + label_w
     align_labels_x = start_x_algo - sx(10)
 
-    display.blit(font_labels.render("COST", True, text_gray), font_labels.render("COST", True, text_gray).get_rect(
+    display.blit(font_labels.render("CUSTO", True, text_gray), font_labels.render("CUSTO", True, text_gray).get_rect(
         midright=(align_labels_x, row_cost_y + display_h // 2)))
-    display.blit(font_labels.render("NODES", True, text_gray), font_labels.render("NODES", True, text_gray).get_rect(
+    display.blit(font_labels.render("NÓS", True, text_gray), font_labels.render("NÓS", True, text_gray).get_rect(
         midright=(align_labels_x, row_nodes_y + display_h // 2)))
-    display.blit(font_labels.render("LIMIT", True, text_gray), font_labels.render("LIMIT", True, text_gray).get_rect(
+    display.blit(font_labels.render("LIMITE", True, text_gray), font_labels.render("LIMITE", True, text_gray).get_rect(
         midright=(align_labels_x, row_limit_y + display_h // 2)))
 
     t_algo = font_labels.render("ALGO", True, text_gray)
-    t_rithm = font_labels.render("RITHM", True, text_gray)
+    t_rithm = font_labels.render("RITIMO", True, text_gray)
     algo_center_y = row_btn_y + btn_algo_h // 2
     line_spacing = font_labels.get_linesize() - sy(4)
     display.blit(t_algo, t_algo.get_rect(midright=(align_labels_x, algo_center_y - line_spacing // 2)))
