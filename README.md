@@ -35,6 +35,12 @@ A small maze game featuring 9 search algorithm implementation. This project was 
 - **Pnode.py**: An extension of the base node class. It is designed for cost-based searches.
 #### 🛠️ Utility Functions
 - **AuxFunctions.py**:  Handles the maze generation logic. It utilizes a variation of Depth-First to "dig"  tunnels in a maze.
+#### 🎨Media 
+-   **assets/** : Stores visual assets such as navigation icons, start/end markers, and terrain textures .
+#### ⚙️ Configuration
+-   **.python-version**: Specifies the exact Python version used during development to prevent compatibility issues.
+    
+-   **.gitignore**: Ensures that temporary files (__pycache__) and local environments (myEnv/) are not tracked by version control.
 ## 📋 Technologies Used
 - **Language:** Python 3.11.9 🐍
 - **Graphic Library:** Pygame 🎮
