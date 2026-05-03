@@ -2,7 +2,6 @@ import AuxFunctions as AuxFunc
 from collections import deque
 from NPnode import NPnode
 
-
 class NPsearch(object):
     ### NEIGHBORS
     def neighbors(self, state, nx, ny, maze):
@@ -48,17 +47,6 @@ class NPsearch(object):
             if node.state == value:
                 return node
 
-    ### Draw path found in search tree - bidirection
-    def show_path_b(self, join, queue_1, queue_2):
-
-        join_1 = self.findNode(join, queue_1)  # Source node side
-        join_2 = self.findNode(join, queue_2)  # Target node side
-
-        path_1 = self.showPath(join_1)
-        path_2 = self.showPath(join_2)
-        path_2 = list(reversed(path_2[::-1]))  # Path_2 inversion
-        return path_1 + path_2
-
     ## Draw Path bidirectional search
     def show_path_bid(self, encontro, fila1, fila2):
         # nó do lado do início
@@ -101,7 +89,7 @@ class NPsearch(object):
             current = queue.popleft()
 
             # Search for neighbors
-            neigh = self.neighbors(current.state, nx, ny, maze)
+            neighbors = self.neighbors(current.state, nx, ny, maze)
 
             # 3. Visualization check:
             # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
@@ -111,7 +99,7 @@ class NPsearch(object):
             if update_ui:
                 update_ui()
 
-            for new in neigh:
+            for new in neighbors:
                 new_t = tuple(new)
                 flag = True
                 if new_t in visited:
@@ -154,7 +142,7 @@ class NPsearch(object):
             current = stack.pop()
 
             # Search for neighbors
-            neighs = self.neighbors(current.state, nx, ny, maze)
+            neighbors = self.neighbors(current.state, nx, ny, maze)
 
             # 3. Visualization check:
             # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
@@ -164,7 +152,7 @@ class NPsearch(object):
             if update_ui:
                 update_ui()
 
-            for new in neighs:
+            for new in neighbors:
                 new_t = tuple(new)
                 flag = True
                 if new_t in visited:
@@ -207,7 +195,7 @@ class NPsearch(object):
 
             if current.depth < lim:
                 # Search for neighbors
-                neighs = self.neighbors(current.state, nx, ny, maze)
+                neighbors = self.neighbors(current.state, nx, ny, maze)
 
                 # 3. Visualization check:
                 # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
@@ -217,7 +205,7 @@ class NPsearch(object):
                 if update_ui:
                     update_ui()
 
-                for new in neighs:
+                for new in neighbors:
                     new_t = tuple(new)
                     flag = True
                     if new_t in visited:
@@ -234,74 +222,77 @@ class NPsearch(object):
         return None
 
 
-    def aprof_iterativo_grid(self, inicio, fim, nx, ny, mapa, lim_max, update_ui):
+    def aprof_iterativo_grid(self, start, end, nx, ny, maze, lim_max, update_ui):
         # Finaliza se início for igual a objetivo
-        if inicio == fim:
-            return [inicio]
+        if start == end:
+            return [start], 0
+
+        total_nodes = 0
 
         for lim in range(1, lim_max + 1):
 
             for r in range(nx):
                 for c in range(ny):
-                    if mapa[r][c] == 4:
-                        mapa[r][c] = 0
+                    if maze[r][c] == 4:
+                        maze[r][c] = 0
 
             # GRID: transforma em tupla
-            t_inicio = tuple(inicio)
-            t_fim = tuple(fim)
+            t_start = tuple(start)
+            t_end = tuple(end)
 
             # Lista para árvore de busca - FILA
-            pilha = deque()
+            queue = deque()
 
             # Inclui início como nó raíz da árvore de busca
-            raiz = NPnode(None, t_inicio, 0, None, None)
-            pilha.append(raiz)
+            root = NPnode(None, t_start, 0, None, None)
+            queue.append(root)
 
-            # Marca início como visitado
-            visitado = {}
-            visitado[t_inicio] = 0
+            # Marca início como visited
+            visited = {}
+            visited[t_start] = 0
 
-            while pilha:
+            while queue:
                 # Remove o primeiro da FILA
-                atual = pilha.pop()
+                current = queue.pop()
+                total_nodes += 1
 
-                if atual.depth < lim:
+                if current.depth < lim:
                     # Gera sucessores a partir do grid
-                    filhos = self.neighbors(atual.state, nx, ny, mapa)
+                    neighbors = self.neighbors(current.state, nx, ny, maze)
 
                     # 3. Visualization check:
                     # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
-                    if mapa[atual.state[0]][atual.state[1]] == 0:
-                        mapa[atual.state[0]][atual.state[1]] = 4
+                    if maze[current.state[0]][current.state[1]] == 0:
+                        maze[current.state[0]][current.state[1]] = 4
 
                     if update_ui:
                         update_ui(lim)
 
-                    for novo in filhos:
-                        t_novo = tuple(novo)
+                    for new in neighbors:
+                        t_new = tuple(new)
                         flag = True
-                        if t_novo in visitado:
-                            if visitado[t_novo] <= atual.depth + 1:
+                        if t_new in visited:
+                            if visited[t_new] <= current.depth + 1:
                                 flag = False
                         if flag:
-                            filho = NPnode(atual, novo, atual.depth + 1, None, None)
-                            pilha.append(filho)
-                            visitado[t_novo] = atual.depth + 1
+                            neigh = NPnode(current, new, current.depth + 1, None, None)
+                            queue.append(neigh)
+                            visited[t_new] = current.depth + 1
 
                             # Verifica se encontrou o objetivo
-                            if t_novo == t_fim:
-                                return self.show_path(filho)
-            visitado.clear()
-            pilha.clear()
+                            if t_new == t_end:
+                                return self.show_path(neigh), total_nodes
+            visited.clear()
+            queue.clear()
         return None
 
 
-    def bidirecional_grid(self, inicio, fim, nx, ny, mapa, update_ui):
-        if inicio == fim:
-            return [inicio]
+    def bidirecional_grid(self, start, end, nx, ny, maze, update_ui):
+        if start == end:
+            return [start]
         # GRID: transforma em tupla
-        t_inicio = tuple(inicio)
-        t_fim = tuple(fim)
+        t_start = tuple(start)
+        t_end = tuple(end)
 
         # Lista para árvore de busca a partir da origem - FILA
         fila1 = deque()
@@ -310,83 +301,83 @@ class NPsearch(object):
         fila2 = deque()
 
         # Inclui início e fim como nó raíz da árvore de busca
-        raiz = NPnode(None, t_inicio, 0, None, None)
-        fila1.append(raiz)
-        raiz = NPnode(None, t_fim, 0, None, None)
-        fila2.append(raiz)
+        root = NPnode(None, t_start, 0, None, None)
+        fila1.append(root)
+        root = NPnode(None, t_end, 0, None, None)
+        fila2.append(root)
 
         # Visitados mapeando estado -> Node (para reconstruir o caminho)
-        visitado1 = {}
-        visitado1[t_inicio] = 0
-        visitado2 = {}
-        visitado2[t_fim] = 0
-        print(visitado1, visitado2)
+        visited1 = {}
+        visited1[t_start] = 0
+        visited2 = {}
+        visited2[t_end] = 0
+        print(visited1, visited2)
 
         nivel = 0
         while fila1 and fila2:
             # ****** Executa AMPLITUDE a partir da ORIGEM *******
-            # Quantidade de nós no nível atual
+            # Quantidade de nós no nível current
             nivel = len(fila1)
             for _ in range(nivel):
                 # Remove o primeiro da FILA
-                atual = fila1.popleft()
+                current = fila1.popleft()
 
                 # Gera sucessores a partir do grid
-                filhos = self.neighbors(atual.state, nx, ny, mapa)  # grid
+                neighbors = self.neighbors(current.state, nx, ny, maze)  # grid
 
                 # 3. Visualization check:
                 # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
-                if mapa[atual.state[0]][atual.state[1]] == 0:
-                    mapa[atual.state[0]][atual.state[1]] = 4
+                if maze[current.state[0]][current.state[1]] == 0:
+                    maze[current.state[0]][current.state[1]] = 4
 
                 if update_ui:
                     update_ui()
 
-                for novo in filhos:
-                    t_novo = tuple(novo)
+                for new in neighbors:
+                    t_new = tuple(new)
                     flag = True
-                    if t_novo in visitado1:
-                        if visitado1[t_novo] <= atual.depth + 1:
+                    if t_new in visited1:
+                        if visited1[t_new] <= current.depth + 1:
                             flag = False
                     if flag:
-                        filho = NPnode(atual, novo, atual.depth + 1, None, None)
-                        fila1.append(filho)
-                        visitado1[t_novo] = atual.depth + 1
+                        neigh = NPnode(current, new, current.depth + 1, None, None)
+                        fila1.append(neigh)
+                        visited1[t_new] = current.depth + 1
 
                         # Encontrou encontro com a outra AMPLITUDE
-                        if t_novo in visitado2:
-                            return self.show_path_bid(novo, fila1, fila2)
+                        if t_new in visited2:
+                            return self.show_path_bid(new, fila1, fila2)
 
             # ****** Executa AMPLITUDE a partir do OBJETIVO *******
             # Quantidade de nós no nível atual
             nivel = len(fila2)
             for _ in range(nivel):
                 # Remove o primeiro da FILA
-                atual = fila2.popleft()
+                current = fila2.popleft()
 
                 # Gera sucessores a partir do grid
-                filhos = self.neighbors(atual.state, nx, ny, mapa)
+                neighbors = self.neighbors(current.state, nx, ny, maze)
 
                 # 3. Visualization check:
                 # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
-                if mapa[atual.state[0]][atual.state[1]] in [0,6]:
-                    mapa[atual.state[0]][atual.state[1]] = 4
+                if maze[current.state[0]][current.state[1]] in [0,6]:
+                    maze[current.state[0]][current.state[1]] = 4
 
                 if update_ui:
                     update_ui()
 
-                for novo in filhos:
-                    t_novo = tuple(novo)
+                for new in neighbors:
+                    t_new = tuple(new)
                     flag = True
-                    if t_novo in visitado2:
-                        if visitado2[t_novo] <= atual.depth + 1:
+                    if t_new in visited2:
+                        if visited2[t_new] <= current.depth + 1:
                             flag = False
                     if flag:
-                        filho = NPnode(atual, novo, atual.depth + 1, None, None)
-                        fila2.append(filho)
-                        visitado2[t_novo] = atual.depth + 1
+                        neigh = NPnode(current, new, current.depth + 1, None, None)
+                        fila2.append(neigh)
+                        visited2[t_new] = current.depth + 1
 
                         # Encontrou encontro com a outra AMPLITUDE
-                        if t_novo in visitado1:
-                            return self.show_path_bid(novo, fila1, fila2)
+                        if t_new in visited1:
+                            return self.show_path_bid(new, fila1, fila2)
         return None

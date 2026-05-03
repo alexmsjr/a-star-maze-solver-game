@@ -66,7 +66,8 @@ class Psearch(object):
     def uniform_cost(self, start, end, nx, ny, maze, update_ui):
         # Origem igual a destino
         if start == end:
-            return [start], 0
+            return [start], 0, 0
+        total_nodes = 0
 
         # Fila de prioridade baseada em deque + inserção ordenada
         queue = deque()
@@ -81,11 +82,12 @@ class Psearch(object):
         while queue:
             # remove o primeiro nó
             current = queue.popleft()
+            total_nodes += 1
             current_value = current.v2
 
             # Chegou ao objetivo
             if current.state == end:
-                return self.show_path(current), current.v2
+                return self.show_path(current), current.v2, total_nodes
 
             # Gera sucessores - grid
             neighbors = self.neighbors(current.state, nx, ny, maze)
@@ -113,7 +115,8 @@ class Psearch(object):
     def greedy(self, start, end, nx, ny, maze, update_ui):  # grid
         # Origem igual a destino
         if start == end:
-            return [start], 0
+            return [start], 0, 0
+        total_nodes = 0
 
         # Fila de prioridade baseada em deque + inserção ordenada
         queue = deque()
@@ -128,11 +131,12 @@ class Psearch(object):
         while queue:
             # remove o primeiro nó
             current = queue.popleft()
+            total_nodes += 1
             current_value = current.v2
 
             # Chegou ao objetivo
             if current.state == end:
-                return self.show_path(current), current.v2
+                return self.show_path(current), current.v2,  total_nodes
 
             # Gera sucessores
             neighbors = self.neighbors(current.state, nx, ny, maze)
@@ -161,7 +165,8 @@ class Psearch(object):
     def a_star(self, start, end, nx, ny, maze, update_ui):
         # Origem igual a destino
         if start == end:
-            return [start], 0
+            return [start], 0, 0
+        total_nodes = 0
 
         # Fila de prioridade baseada em deque + inserção ordenada
         queue = deque()
@@ -176,11 +181,12 @@ class Psearch(object):
         while queue:
             # remove o primeiro nó
             current = queue.popleft()
+            total_nodes += 1
             current_value = current.v2
 
             # Chegou ao objetivo
             if current.state == end:
-                return self.show_path(current), current.v2
+                return self.show_path(current), current.v2, total_nodes
 
             # Gera sucessores
             neighbors = self.neighbors(current.state, nx, ny, maze)
@@ -204,4 +210,71 @@ class Psearch(object):
                     neigh = Pnode(current, t_new, v1, None, None, v2)
                     visited[t_new] = neigh
                     self.insert_ordered(queue, neigh)
+        return None
+
+    def ida_star(self, start, end, nx, ny, maze, update_ui):
+        # Origem igual a destino
+        if start == end:
+            return [start], 0, 0
+        lim = self.heuristic(start, end)
+        total_nodes = 0
+
+        while True:
+
+            for r in range(nx):
+                for c in range(ny):
+                    if maze[r][c] == 4:
+                        maze[r][c] = 0
+
+            # Fila de prioridade baseada em deque + inserção ordenada
+            queue = deque()
+            t_start = tuple(start)
+            root = Pnode(None, t_start, 0, None, None, 0)
+            queue.append(root)
+
+            # Controle de nós visitados
+            visited = {tuple(start): root}
+
+            # loop de busca
+            new_lim = []
+            while queue:
+                # remove o primeiro nó
+                current = queue.popleft()
+                current_value = current.v2
+
+                total_nodes += 1
+
+                # Chegou ao objetivo
+                if current.state == end:
+                    return self.show_path(current), current.v2, total_nodes
+
+                # Gera sucessores
+                neighbors = self.neighbors(current.state, nx, ny, maze)
+
+                # 3. Visualization check:
+                # ONLY change to 4 if it's floor. This keeps the exit (3) visible.
+                if maze[current.state[0]][current.state[1]] == 0:
+                    maze[current.state[0]][current.state[1]] = 4
+
+                if update_ui:
+                    update_ui()
+
+                for new in neighbors:
+                    # custo acumulado até o sucessor
+                    v2 = current_value + new[1]
+                    v1 = v2 + self.heuristic(new[0], end)
+
+                    if v1 <= lim:
+                        # Não visited ou custo melhor
+                        t_new = tuple(new[0])
+                        if (t_new not in visited) or (v2 < visited[t_new].v2):
+                            neigh = Pnode(current, t_new, v1, None, None, v2)
+                            visited[t_new] = neigh
+                            self.insert_ordered(queue, neigh)
+                    else:
+                        new_lim.append(v1)
+            lim = (int)(sum(new_lim) / (len(new_lim)))
+            queue.clear()
+            visited.clear()
+            new_lim.clear()
         return None

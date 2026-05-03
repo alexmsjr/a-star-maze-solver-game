@@ -1,3 +1,12 @@
 .venv
 .idea
 testes.py
+**/pycache/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+myEnv/
+.myEnv/
+venv/
+.venv/
